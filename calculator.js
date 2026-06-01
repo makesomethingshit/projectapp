@@ -845,18 +845,29 @@ function getExplanationBottlenecks(projectId) {
 }
 
 export function getBottleneckRecommendations(projectId) {
-  const known = new Set();
   const candidates = [
     ...getBottleneckDetails(projectId),
     ...getExplanationBottlenecks(projectId)
   ];
+  
+  // 먼저 심각도(level)가 critical인 것, 그리고 drag 수치가 큰 순으로 정렬하여
+  // unique 배열에 높은 수준의 병목요인이 우선 선점되도록 합니다.
+  const levelScore = (item) => item.level === "critical" ? 2 : 1;
+  const sortedCandidates = [...candidates].sort((a, b) => {
+    return levelScore(b) - levelScore(a) || b.drag - a.drag;
+  });
+
+  const known = new Set();
   const unique = [];
-  candidates.forEach((item) => {
-    const key = `${item.type}:${item.sourceType}:${item.sourceId}:${item.metric}`;
+  sortedCandidates.forEach((item) => {
+    // 중복 제거의 기준을 sourceType과 sourceId로 좁혀
+    // 동일 프로젝트/할 일이 위험과 주의 상태 모두에 중복 표시되는 문제를 방지합니다.
+    const key = `${item.sourceType}:${item.sourceId}`;
     if (known.has(key)) return;
     known.add(key);
     unique.push(item);
   });
+
   return unique
     .map((item) => ({
       ...item,
@@ -865,7 +876,6 @@ export function getBottleneckRecommendations(projectId) {
       rationale: `${item.metric === "advance" ? "진행도" : "완성도"} -${item.drag.toFixed(1)}%p`
     }))
     .sort((a, b) => {
-      const levelScore = (item) => item.level === "critical" ? 2 : 1;
       return levelScore(b) - levelScore(a) || b.drag - a.drag;
     });
 }
