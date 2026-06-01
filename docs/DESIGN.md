@@ -26,7 +26,8 @@
   - **한글 (Korean)**: `"Noto Serif KR"` (종이 인쇄물 느낌의 부드러운 명조체)
 - **디지털 모드 (Digital / Dark 테마)**
   - **영문/숫자 (Latin)**: `"Segoe UI"` (현대적이고 명확한 디지털 서체)
-  - **한글 (Korean)**: `"Noto Sans KR"` (가독성 높은 고딕체)
+  - **한글 (Korean)**: `"Noto Sans KR Light"` (글자가 뭉치는 현상을 막기 위해 Noto Sans KR의 얇은 폰트 패밀리를 우선 적용)
+
 
 ### 타이포그래피 위계 (Hierarchy)
 

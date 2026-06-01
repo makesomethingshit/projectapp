@@ -2,7 +2,7 @@
   --font-analog-latin: "Aptos";
   --font-analog-korean: "Noto Serif KR";
   --font-digital-latin: "Segoe UI";
-  --font-digital-korean: "Noto Sans KR";
+  --font-digital-korean: "Noto Sans KR Light", "Noto Sans KR DemiLight", "Noto Sans KR";
   --font-current-latin: var(--font-analog-latin);
   --font-current-korean: var(--font-analog-korean);
   --paper: #f5f4ed;
