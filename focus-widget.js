@@ -51,18 +51,35 @@ function pickFocusTasks(state) {
   const focusedIds = Array.isArray(state?.appSettings?.focusedTaskIds)
     ? state.appSettings.focusedTaskIds.map(Number)
     : [];
+  const archiveResources = Array.isArray(state?.archiveResources) ? state.archiveResources : [];
+  const archiveResourceLinks = Array.isArray(state?.archiveResourceLinks) ? state.archiveResourceLinks : [];
+
   const mappedTasks = tasks
     .map((task) => {
       const completion = clampProgress(task.progress);
       const advance = clampProgress(task.advance ?? task.progress);
       const project = projects.find((item) => Number(item.id) === Number(task.projectId));
+
+      // Task 및 부모 Project에 연결된 아카이브 리소스 가져오기
+      const connectedResourceIds = archiveResourceLinks
+        .filter((link) => {
+          const targetId = Number(link.targetId);
+          if (link.targetType === "task" && targetId === Number(task.id)) return true;
+          if (link.targetType === "project" && task.projectId && targetId === Number(task.projectId)) return true;
+          return false;
+        })
+        .map((link) => Number(link.resourceId));
+
+      const taskResources = archiveResources.filter((res) => connectedResourceIds.includes(Number(res.id)));
+
       return {
         ...task,
         completion,
         advance,
         projectName: project?.name || "프로젝트 없음",
         projectPath: projectPath(projects, task.projectId),
-        score: completion + advance * 0.25
+        score: completion + advance * 0.25,
+        resources: taskResources
       };
     })
     .filter((task) => task.completion < 100);
@@ -84,7 +101,7 @@ function renderEmpty() {
   focusList.innerHTML = `<p class="focus-empty">완성도 100% 미만의 할 일을 찾지 못했습니다. 지금은 숨 돌려도 됩니다.</p>`;
 }
 
-function renderTasks(tasks) {
+function renderTasks(tasks, state) {
   if (!tasks.length) {
     renderEmpty();
     return;
@@ -93,26 +110,62 @@ function renderTasks(tasks) {
   const first = tasks[0];
   primaryTask.textContent = first.name;
   primaryProject.textContent = first.projectPath || first.projectName;
-  focusList.innerHTML = tasks.map((task, index) => `
-    <article class="focus-card ${index === 0 ? "is-primary" : ""}">
-      <header>
-        <strong>${escapeHtml(task.name)}</strong>
-        <small>${task.completion}%</small>
-      </header>
-      <div class="focus-project">${escapeHtml(task.projectPath || task.projectName)}</div>
-      <span class="focus-meter" aria-label="완성도 ${task.completion}%">
-        <i style="--value:${task.completion}%"></i>
-      </span>
-      <label class="focus-control">
-        <span>완성도</span>
-        <input type="range" min="0" max="100" step="5" value="${task.completion}" data-widget-progress="${task.id}" />
-      </label>
-      <label class="focus-control">
-        <span>진행도</span>
-        <input type="range" min="0" max="100" step="5" value="${task.advance}" data-widget-advance="${task.id}" />
-      </label>
-    </article>
-  `).join("");
+
+  const bottleneckCache = Array.isArray(state?.appSettings?.bottleneckCache)
+    ? state.appSettings.bottleneckCache
+    : [];
+
+  focusList.innerHTML = tasks.map((task, index) => {
+    const bottleneck = bottleneckCache.find(
+      (item) => item.sourceType === "task" && Number(item.sourceId) === Number(task.id)
+    );
+
+    const resourcesMarkup = Array.isArray(task.resources) && task.resources.length > 0
+      ? `
+        <div class="focus-resources">
+          ${task.resources.map(res => {
+            let icon = "🔗";
+            if (res.type === "folder") icon = "📁";
+            else if (res.type === "file") icon = "📄";
+            return `
+              <button class="focus-resource-btn" 
+                      data-open-archive-path="${escapeHtml(res.path)}" 
+                      data-archive-type="${escapeHtml(res.type)}"
+                      title="${escapeHtml(res.name)} (${escapeHtml(res.desc || '')})">
+                <span class="focus-resource-icon">${icon}</span>
+                <span class="focus-resource-name">${escapeHtml(res.name)}</span>
+              </button>
+            `;
+          }).join("")}
+        </div>
+      `
+      : "";
+
+    return `
+      <article class="focus-card ${index === 0 ? "is-primary" : ""}">
+        <header class="focus-card-header">
+          <div class="focus-card-title-group">
+            <strong class="focus-card-title" title="${escapeHtml(task.name)}">${escapeHtml(task.name)}</strong>
+            ${bottleneck ? `<span class="focus-bottleneck-badge" title="병목요인 작업: 이 작업의 완료가 전체 프로젝트 일정을 지연시키고 있습니다.">⚠️ 병목${bottleneck.drag ? ` (-${Number(bottleneck.drag).toFixed(1)}%p)` : ""}</span>` : ""}
+          </div>
+          <small class="focus-card-percent">${task.completion}%</small>
+        </header>
+        <div class="focus-project">${escapeHtml(task.projectPath || task.projectName)}</div>
+        <span class="focus-meter" aria-label="완성도 ${task.completion}%">
+          <i style="--value:${task.completion}%"></i>
+        </span>
+        <label class="focus-control">
+          <span>완성도</span>
+          <input type="range" min="0" max="100" step="5" value="${task.completion}" data-widget-progress="${task.id}" />
+        </label>
+        <label class="focus-control">
+          <span>진행도</span>
+          <input type="range" min="0" max="100" step="5" value="${task.advance}" data-widget-advance="${task.id}" />
+        </label>
+        ${resourcesMarkup}
+      </article>
+    `;
+  }).join("");
 }
 
 async function refreshFocusWidget() {
@@ -126,15 +179,50 @@ async function refreshFocusWidget() {
   const theme = state.appSettings?.theme === "dark" ? "dark" : "light";
   document.documentElement.dataset.theme = theme;
 
-  renderTasks(pickFocusTasks(state));
+  renderTasks(pickFocusTasks(state), state);
 }
+
+// 투명도 제어 변수 및 이벤트 통합
+let userOpacity = Number(opacityInput.value) / 100;
+let isHovered = true; // 최초 상태
+
+function updateOpacity() {
+  const targetOpacity = isHovered ? userOpacity : 0.35;
+  window.workshopApp?.setFocusOpacity?.(targetOpacity);
+  document.body.classList.toggle("is-faded", !isHovered);
+}
+
+// 초기 불투명도 적용
+updateOpacity();
 
 refreshButton.addEventListener("click", refreshFocusWidget);
 openMainButton.addEventListener("click", () => {
   window.workshopApp?.openMainWindow?.();
 });
 opacityInput.addEventListener("input", () => {
-  window.workshopApp?.setFocusOpacity?.(Number(opacityInput.value) / 100);
+  userOpacity = Number(opacityInput.value) / 100;
+  updateOpacity();
+});
+
+// 마우스 진입/이탈 이벤트 바인딩
+document.addEventListener("mouseenter", () => {
+  isHovered = true;
+  updateOpacity();
+});
+document.addEventListener("mouseleave", () => {
+  isHovered = false;
+  updateOpacity();
+});
+
+// 아카이브 리소스 퀵 실행 버튼 위임 이벤트 바인딩
+focusList.addEventListener("click", (event) => {
+  const btn = event.target.closest(".focus-resource-btn");
+  if (!btn) return;
+  const path = btn.dataset.openArchivePath;
+  const type = btn.dataset.archiveType;
+  if (path && type) {
+    window.workshopApp?.openResource?.(path, type);
+  }
 });
 
 focusList.addEventListener("input", async (event) => {

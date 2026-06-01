@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { state } from "./state.js";
+import { state, saveState } from "./state.js";
 import { getBottleneckRecommendations } from "./calculator.js";
 
 function resetState({ projects, tasks = [], projectLinks = [], formulaNodes = [], formulaLinks = [] }) {
@@ -112,5 +112,12 @@ assert.equal(recommendations[0].sourceName, "Advance-only slow task");
 assert.equal(recommendations[0].metric, "advance");
 assert.equal(recommendations[0].actionType, "focus_task");
 assert.match(recommendations[0].recommendation, /진행도/);
+
+// bottleneckCache 검증 테스트
+saveState();
+const cached = state.appSettings.bottleneckCache;
+assert(Array.isArray(cached), "bottleneckCache should be an array");
+const slowTaskCache = cached.find(item => item.sourceType === "task" && Number(item.sourceId) === 10);
+assert.ok(slowTaskCache, "Slow task (id 10) should be cached in bottleneckCache");
 
 console.log("bottleneck recommendations test passed");

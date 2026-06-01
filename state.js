@@ -1,4 +1,20 @@
 import {
+  clampProgress,
+  clampGraphZoom,
+  clampGraphCanvasScale,
+  clampGraphNodeScale,
+  getRollupProgress,
+  getRollupAdvance,
+  getProject,
+  getBottleneckRecommendations
+} from "./calculator.js";
+
+import {
+  migrateProjectResourcesToArchive,
+  normalizeArchiveResources,
+  normalizeArchiveResourceLinks
+} from "./archive-model.js";
+
 // ==============================================================
 // FUNCTION INDEX (state.js)
 // --------------------------------------------------------------
@@ -20,20 +36,7 @@ import {
 // L353   saveState
 // ==============================================================
 
-  clampProgress,
-  clampGraphZoom,
-  clampGraphCanvasScale,
-  clampGraphNodeScale,
-  getRollupProgress,
-  getRollupAdvance,
-  getProject
-} from "./calculator.js";
 
-import {
-  migrateProjectResourcesToArchive,
-  normalizeArchiveResources,
-  normalizeArchiveResourceLinks
-} from "./archive-model.js";
 
 const STORAGE_KEY = "studio-project-widget-state-v1";
 const BACKUP_STORAGE_KEY = `${STORAGE_KEY}-backup`;
@@ -545,6 +548,28 @@ export function applyLoadedState(saved) {
 export function saveState() {
   try {
     recordWorkspaceHistory();
+
+    // 집중 위젯에서 상태 불일치 없이 정확히 사용할 수 있도록 전체 활성 병목 목록 캐시 생성
+    const cache = [];
+    const seen = new Set();
+    state.projects.forEach((p) => {
+      const recommendations = getBottleneckRecommendations(p.id);
+      recommendations.forEach((item) => {
+        const key = `${item.sourceType}:${item.sourceId}`;
+        if (seen.has(key)) return;
+        seen.add(key);
+        cache.push({
+          sourceType: item.sourceType,
+          sourceId: item.sourceId,
+          level: item.level,
+          drag: item.drag,
+          metric: item.metric
+        });
+      });
+    });
+    state.appSettings.bottleneckCache = cache;
+
+    if (typeof localStorage === "undefined") return;
     const previousState = localStorage.getItem(STORAGE_KEY);
     if (previousState) localStorage.setItem(BACKUP_STORAGE_KEY, previousState);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(getSerializableState()));

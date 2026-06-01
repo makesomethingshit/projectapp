@@ -177,23 +177,33 @@ button {
   border-color: color-mix(in srgb, var(--text) 45%, transparent);
 }
 
-.focus-card header {
+.focus-card-header {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: 10px;
+  min-width: 0;
 }
 
-.focus-card strong {
+.focus-card-title-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  flex: 1;
+}
+
+.focus-card-title {
   min-width: 0;
   overflow: hidden;
   font-size: 13px;
   line-height: 1.25;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-weight: 700;
 }
 
-.focus-card small {
+.focus-card-percent {
   flex: 0 0 auto;
   color: var(--quiet);
   font-size: 10px;
@@ -285,4 +295,82 @@ button {
   .focus-hero strong {
     font-size: 18px;
   }
+}
+
+/* ==============================================================
+   집중 위젯 고도화 기능 추가 스타일 (병목 배지, 퀵 런처, 페이드 폰트 대비)
+   ============================================================== */
+
+/* 미니 병목 배지 */
+.focus-bottleneck-badge {
+  flex: 0 0 auto;
+  background: var(--alert);
+  color: var(--surface);
+  font-size: 9px;
+  font-weight: 800;
+  padding: 1.5px 5px;
+  border-radius: 4px;
+  letter-spacing: -0.02em;
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+  box-shadow: 0 2px 4px rgba(185, 65, 52, 0.15);
+  margin-left: 6px;
+}
+
+:root[data-theme="dark"] .focus-bottleneck-badge {
+  box-shadow: 0 2px 6px rgba(255, 117, 104, 0.25);
+}
+
+/* 아카이브 리소스 퀵 런처 */
+.focus-resources {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--line);
+}
+
+.focus-resource-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--panel-soft);
+  border: 1px solid var(--line);
+  color: var(--text);
+  transition: all 0.15s ease;
+  min-width: 0;
+}
+
+.focus-resource-btn:hover {
+  background: var(--line);
+  border-color: color-mix(in srgb, var(--text) 30%, var(--line));
+  transform: translateY(-0.5px);
+}
+
+.focus-resource-icon {
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+.focus-resource-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100px;
+}
+
+/* 창 페이드 아웃(반투명) 시 폰트 대비 조율 */
+body.is-faded .focus-card {
+  text-shadow: 0 0 1px var(--surface);
+}
+
+body.is-faded .focus-card strong,
+body.is-faded .focus-card-title {
+  font-weight: 800;
 }
