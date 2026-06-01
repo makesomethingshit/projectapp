@@ -191,22 +191,24 @@ export function getCompletionItemKey(type, id) {
 
 export function getCompletionContributors(projectId) {
   const children = getChildProjects(projectId).filter((child) => child.contributionMode !== "advance");
-  if (children.length) {
-    return children.map((child) => ({
-      type: "project",
-      id: child.id,
-      name: child.name,
-      value: () => getRollupProgress(child.id)
-    }));
-  }
   const completionTasks = getProjectTasks(projectId)
     .filter((task) => taskContributesTo(task, "completion"));
-  return completionTasks.map((task) => ({
+
+  const childContributors = children.map((child) => ({
+    type: "project",
+    id: child.id,
+    name: child.name,
+    value: () => getRollupProgress(child.id)
+  }));
+
+  const taskContributors = completionTasks.map((task) => ({
     type: "task",
     id: task.id,
     name: task.name,
     value: () => clampProgress(task.progress)
   }));
+
+  return [...childContributors, ...taskContributors];
 }
 
 export function getCompletionWeight(projectId, key, fallback) {
@@ -322,17 +324,18 @@ export function getOwnAdvance(projectId, seen = new Set()) {
   if (!project) return 0;
   if (seen.has(projectId)) return clampProgress(project.advance ?? project.progress);
   seen.add(projectId);
+
   const children = getChildProjects(projectId).filter((child) => child.contributionMode !== "completion");
-  if (children.length) {
-    const total = children.reduce((sum, child) => sum + getRollupAdvance(child.id, new Set(seen)), 0);
-    return Math.round(total / children.length);
-  }
   const directTasks = getProjectTasks(projectId);
   const advanceTasks = directTasks.filter((task) => taskContributesTo(task, "advance"));
-  if (advanceTasks.length) {
-    const total = advanceTasks.reduce((sum, task) => sum + clampProgress(task.advance), 0);
-    return Math.round(total / advanceTasks.length);
+
+  const totalContributors = children.length + advanceTasks.length;
+  if (totalContributors > 0) {
+    const childrenTotal = children.reduce((sum, child) => sum + getRollupAdvance(child.id, new Set(seen)), 0);
+    const tasksTotal = advanceTasks.reduce((sum, task) => sum + clampProgress(task.advance), 0);
+    return Math.round((childrenTotal + tasksTotal) / totalContributors);
   }
+
   return clampProgress(project.advance ?? project.progress);
 }
 

@@ -66,15 +66,15 @@ resetState({
   ]
 });
 
-assert.equal(getRollupProgress(1), 70, "eligible child project takes precedence over direct completion tasks");
-assert.equal(getRollupAdvance(1), 40, "eligible child project takes precedence over direct advance tasks");
+assert.equal(getRollupProgress(1), 40, "child project and direct tasks are calculated together for completion");
+assert.equal(getRollupAdvance(1), 68, "child project and direct tasks are calculated together for advance");
 
 state.projects[1].contributionMode = "advance";
 assert.equal(getRollupProgress(1), 10, "advance-only child is excluded from parent completion contributors");
-assert.equal(getRollupAdvance(1), 40, "advance-only child remains an advance contributor");
+assert.equal(getRollupAdvance(1), 68, "advance-only child remains an advance contributor along with task");
 
 state.projects[1].contributionMode = "completion";
-assert.equal(getRollupProgress(1), 70, "completion-only child remains a completion contributor");
+assert.equal(getRollupProgress(1), 40, "completion-only child remains a completion contributor along with task");
 assert.equal(getRollupAdvance(1), 95, "completion-only child is excluded from parent advance contributors");
 
 resetState({
@@ -111,7 +111,7 @@ state.completionWeights = {
   }
 };
 pruneCompletionWeights(1);
-assert.deepEqual(state.completionWeights[1], { "project:2": 70 }, "stale direct task weights are pruned while child contributes");
+assert.deepEqual(state.completionWeights[1], { "project:2": 70, "task:10": 30 }, "stale weights are pruned while valid child and task weights are preserved");
 
 state.projects[1].parentId = null;
 state.completionWeights = {
