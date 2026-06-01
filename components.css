@@ -1937,3 +1937,22 @@ svg {
     height: calc(1100px * var(--graph-zoom, 1) * var(--graph-canvas-scale, 1.1));
   }
 }
+
+/* 유실 리소스에 대한 시각 피드백 */
+.archive-resource-row.is-missing {
+  background-color: rgba(239, 68, 68, 0.04) !important;
+  border-color: rgba(239, 68, 68, 0.4) !important;
+  opacity: 0.8;
+}
+
+.archive-resource-row.is-missing strong::before {
+  content: "⚠️ [유실됨] ";
+  color: #ef4444;
+  font-weight: bold;
+}
+
+.archive-resource-row.is-missing .green-command {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}

@@ -358,7 +358,10 @@ export function renderProjectDetail() {
   if (state.viewMode === "archive") {
     // 아카이브는 별도 전체 뷰에 렌더링
     const archiveFullContentEl = document.getElementById("archiveFullContent");
-    if (archiveFullContentEl) archiveFullContentEl.innerHTML = renderArchiveView(project);
+    if (archiveFullContentEl) {
+      archiveFullContentEl.innerHTML = renderArchiveView(project);
+      scanArchivePaths(document.getElementById("archiveFullView"));
+    }
     return;
   }
 
@@ -462,6 +465,7 @@ export function renderProjectDetail() {
 
     <div class="task-board">${taskListMarkup}</div>
   `;
+  scanArchivePaths(document.getElementById("projectDetailPanel") || document.getElementById("projectDetail"));
 }
 
 export function renderSearch() {
@@ -1291,4 +1295,29 @@ export function createGraphArchiveNode(point, resourceId = null) {
   state.graphNotice = "아카이브 노드를 생성했습니다.";
   saveState();
   renderProjectDetail();
+}
+
+export async function scanArchivePaths(container = document) {
+  if (!container) return;
+  const items = container.querySelectorAll(".js-archive-item");
+  if (items.length === 0) return;
+
+  const promises = Array.from(items).map(async (item) => {
+    const filePath = item.getAttribute("data-resource-path");
+    if (!filePath) return;
+    try {
+      if (window.workshopApp && typeof window.workshopApp.checkPathExists === "function") {
+        const exists = await window.workshopApp.checkPathExists(filePath);
+        if (exists === false) {
+          item.classList.add("is-missing");
+        } else {
+          item.classList.remove("is-missing");
+        }
+      }
+    } catch (error) {
+      console.error("Failed to check path existence:", filePath, error);
+    }
+  });
+
+  await Promise.all(promises);
 }
