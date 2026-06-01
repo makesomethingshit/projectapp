@@ -14,7 +14,7 @@
 ## 상태와 도메인 로직
 
 - `state.js`: 중앙 상태, 기본/demo 데이터, 정규화, 저장/불러오기, 과거 프로젝트 리소스 마이그레이션, 히스토리 기록.
-- `calculator.js`: 진행도 보정, 계층 탐색, 완성도/진행도 롤업, 표시용 진행도 helper, 롤업 설명 데이터, stale 완성도 가중치 정리, 프로젝트/수식 링크, 병목 계산.
+- `calculator.js`: 진행도 보정, 계층 탐색, 완성도/진행도 롤업, 표시용 진행도 helper, 롤업 설명 데이터, stale 완성도 가중치 정리, 프로젝트/수식 링크, 병목 계산과 추천.
 - `archive-model.js`: 아카이브 리소스 정규화, 아카이브 링크 정규화, 과거 리소스 마이그레이션, 아카이브 리소스 수정/연결 helper.
 
 프로젝트, 작업, 계층, 진행도, 수식, 상태, 아카이브, 가져오기/내보내기, 저장 로직을 바꾸기 전에는 이 파일들을 먼저 봅니다.
@@ -33,7 +33,7 @@
 
 ## 렌더링 컴포넌트
 
-- `ui-components.js`: 프로젝트 상세, 작업 카드, 아카이브 뷰, 지표, 롤업 설명 패널, 병목 카드, 목록/상세 마크업.
+- `ui-components.js`: 프로젝트 상세, 작업 카드, 아카이브 뷰, 지표, 롤업 설명 패널, 병목 카드와 추천 문구, 목록/상세 마크업.
 - `graph-components.js`: 그래프 데이터, 그래프 노드/엣지 마크업, 수식 컨트롤, 미니맵/컨텍스트 메뉴, 전체 그래프 렌더링.
 
 UI 마크업을 바꾸기 전 이 파일들을 확인합니다.
@@ -66,6 +66,8 @@ UI 마크업을 바꾸기 전 이 파일들을 확인합니다.
 - `test_archive_view_attach_controls.mjs`
 - `test_archive_view_modes.mjs`
 - `test_bottleneck_alert_design.mjs`
+- `test_bottleneck_recommendations.mjs`
+- `test_bottleneck_recommendation_markup.mjs`
 - `test_bottleneck_hierarchy_direction.mjs`
 - `test_project_progress_rollup_contract.mjs`
 - `test_rollup_explanation.mjs`

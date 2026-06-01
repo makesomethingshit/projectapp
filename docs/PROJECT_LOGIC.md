@@ -95,6 +95,7 @@
 - 비중은 5-90으로 제한됩니다.
 - 롤업에서 전체 외부 영향은 최대 90%입니다.
 - 병목 계산은 하위 프로젝트에서 상위 조상 링크를 병목으로 잘못 보고하지 않도록 걸러냅니다.
+- 병목 추천은 `getBottleneckRecommendations()`에서 계산합니다. 기존 병목 계산과 롤업 설명 데이터를 조합한 파생값이며 저장하지 않습니다.
 
 ## 수식 로직
 
@@ -115,6 +116,7 @@
 - 프로젝트 `progress`와 `advance`는 기여 항목이 없을 때의 fallback으로 취급합니다.
 - 표시와 요약에는 `getProjectDisplayProgress()`와 `getProjectDisplayAdvance()`를 사용합니다. 세그먼트, 병목, 수식 내부 계산처럼 계산 로직 자체가 필요한 곳은 `getRollupProgress()`와 `getRollupAdvance()`를 직접 사용할 수 있습니다.
 - 롤업 설명 UI는 `getRollupExplanation()` 결과를 사용합니다. 설명 행, 비중, 영향도는 모두 계산 시점의 파생값이며 저장하지 않습니다.
+- 병목 추천 UI는 `getBottleneckRecommendations()` 결과를 사용합니다. 추천 문장과 행동 유형은 저장 상태가 아니라 현재 롤업/병목 상태에서 즉시 계산합니다.
 - 가져오기나 대량 변경 후에는 정규화 함수를 사용합니다.
 - 같은 관계를 `parentId`와 `projectLinks`에 동시에 표현하지 않습니다.
 - 프로젝트 삭제 시 하위 작업, 프로젝트 링크, 수식 링크, 수식 입력 링크, 아카이브 링크, 레이아웃 위치를 함께 정리합니다.

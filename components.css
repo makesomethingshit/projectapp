@@ -1200,6 +1200,22 @@ svg {
   font-size: 13px;
 }
 
+.bottleneck-recommendation {
+  display: block;
+  margin-top: 7px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.bottleneck-recommendation b {
+  margin-right: 6px;
+  color: var(--text);
+  font-size: 10px;
+  font-weight: 900;
+}
+
 .green-command {
   border: 0;
   background: transparent;

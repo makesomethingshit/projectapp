@@ -12,6 +12,8 @@ const assertionTests = [
   "test_archive_view_attach_controls.mjs",
   "test_archive_view_modes.mjs",
   "test_bottleneck_alert_design.mjs",
+  "test_bottleneck_recommendations.mjs",
+  "test_bottleneck_recommendation_markup.mjs",
   "test_bottleneck_hierarchy_direction.mjs",
   "test_project_progress_rollup_contract.mjs",
   "test_rollup_explanation.mjs",

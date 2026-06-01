@@ -47,7 +47,8 @@ import {
   getOutgoingLinks,
   getProgressSegments,
   getAdvanceSegments,
-  getBottleneckDetails
+  getBottleneckDetails,
+  getBottleneckRecommendations
 } from "./calculator.js";
 
 const today = new Date();
@@ -946,7 +947,7 @@ function renderBottleneckAlertCardLegacy(project) {
 }
 
 export function renderBottleneckAlertCard(project) {
-  const bottlenecks = getBottleneckDetails(project.id);
+  const bottlenecks = getBottleneckRecommendations(project.id);
   if (!bottlenecks.length) return "";
 
   const actionButton = (className, attrs, label) => `
@@ -986,6 +987,10 @@ export function renderBottleneckAlertCard(project) {
                   <strong>${escapeHtml(b.sourceName)}</strong>
                   <span>${targetTypeLabel} · ${metricName} -${b.drag.toFixed(1)}%p</span>
                 </p>
+                <small class="bottleneck-recommendation">
+                  <b>추천</b>
+                  ${escapeHtml(b.recommendation)}
+                </small>
               </div>
               <div class="bottleneck-item-actions">
                 ${actionButtons}

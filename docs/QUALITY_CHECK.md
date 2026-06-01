@@ -34,6 +34,8 @@ node test_archive_topic_grouping.mjs
 node test_archive_view_attach_controls.mjs
 node test_archive_view_modes.mjs
 node test_bottleneck_alert_design.mjs
+node test_bottleneck_recommendations.mjs
+node test_bottleneck_recommendation_markup.mjs
 node test_bottleneck_hierarchy_direction.mjs
 node test_project_progress_rollup_contract.mjs
 node test_rollup_explanation.mjs

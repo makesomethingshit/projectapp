@@ -40,6 +40,7 @@ import { state } from "./state.js";
 // L643   getAdvanceSegments
 // L684   getExternalLinkDrag
 // L701   getInternalContributorDrag
+// L847   getBottleneckRecommendations
 // ==============================================================
 
 export function clampProgress(value) {
@@ -790,5 +791,82 @@ export function getBottleneckDetails(projectId) {
   });
 
   return result;
+}
+
+function getRecommendationText(item) {
+  const metricName = item.metric === "advance" ? "진행도" : "완성도";
+  if (item.sourceType === "task") {
+    return `이 할 일을 먼저 올리면 ${metricName} 병목이 가장 빨리 줄어듭니다.`;
+  }
+  if (item.sourceType === "formula") {
+    return `수식 입력값을 확인하면 ${metricName}를 끌어내리는 원인을 좁힐 수 있습니다.`;
+  }
+  if (item.type === "external") {
+    return `외부 반영 원천이 낮아 ${metricName}를 끌어내립니다. 추적해서 원천 작업을 정리하세요.`;
+  }
+  return `하위 프로젝트 안의 낮은 할 일을 정리하면 상위 ${metricName}가 움직입니다.`;
+}
+
+function getRecommendationActionType(item) {
+  if (item.sourceType === "task") return "focus_task";
+  if (item.sourceType === "formula") return "trace_formula";
+  if (item.type === "external") return "add_task";
+  return "open_project";
+}
+
+function levelFromDrag(drag) {
+  if (drag >= 5) return "critical";
+  if (drag >= 2) return "warning";
+  return null;
+}
+
+function getExplanationBottlenecks(projectId) {
+  return ["completion", "advance"].flatMap((metric) => {
+    const explanation = getRollupExplanation(projectId, metric);
+    return explanation.contributors
+      .filter((item) => item.type === "project" || item.type === "task")
+      .map((item) => {
+        const drag = (Number(item.share) || 0) * (explanation.finalValue - item.value) / 100;
+        const level = levelFromDrag(drag);
+        if (!level) return null;
+        return {
+          type: "internal",
+          sourceId: item.id,
+          sourceType: item.type,
+          sourceName: item.name,
+          drag,
+          level,
+          metric,
+          key: item.key || getCompletionItemKey(item.type, item.id)
+        };
+      })
+      .filter(Boolean);
+  });
+}
+
+export function getBottleneckRecommendations(projectId) {
+  const known = new Set();
+  const candidates = [
+    ...getBottleneckDetails(projectId),
+    ...getExplanationBottlenecks(projectId)
+  ];
+  const unique = [];
+  candidates.forEach((item) => {
+    const key = `${item.type}:${item.sourceType}:${item.sourceId}:${item.metric}`;
+    if (known.has(key)) return;
+    known.add(key);
+    unique.push(item);
+  });
+  return unique
+    .map((item) => ({
+      ...item,
+      actionType: getRecommendationActionType(item),
+      recommendation: getRecommendationText(item),
+      rationale: `${item.metric === "advance" ? "진행도" : "완성도"} -${item.drag.toFixed(1)}%p`
+    }))
+    .sort((a, b) => {
+      const levelScore = (item) => item.level === "critical" ? 2 : 1;
+      return levelScore(b) - levelScore(a) || b.drag - a.drag;
+    });
 }
 
