@@ -111,7 +111,7 @@ export function renderArchiveView() {
   const archiveSections = viewMode === "type"
     ? typeEntries
     : viewMode === "all"
-      ? [["전체", resources]]
+      ? [["전체", [...resources].sort((a, b) => b.id - a.id)]]
       : sortedTopicEntries;
   const archiveViewControls = [
     ["topic", "주제별"],
