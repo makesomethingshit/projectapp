@@ -11,5 +11,7 @@ contextBridge.exposeInMainWorld("workshopApp", {
   exportData: (data) => ipcRenderer.invoke("export-data", data),
   importData: () => ipcRenderer.invoke("import-data"),
   setWindowSize: (width, height) => ipcRenderer.invoke("set-window-size", width, height),
-  openResource: (path, type) => ipcRenderer.invoke("open-resource", path, type)
+  openResource: (path, type) => ipcRenderer.invoke("open-resource", path, type),
+  selectFileOrFolder: (type) => ipcRenderer.invoke("select-file-or-folder", type),
+  checkPathExists: (filePath) => ipcRenderer.invoke("check-path-exists", filePath)
 });

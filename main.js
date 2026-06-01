@@ -202,14 +202,14 @@ ipcMain.handle("import-data", async () => {
   return { ok: true, path: result.filePaths[0], data };
 });
 
-ipcMain.handle("open-resource", async (_event, path, type) => {
+ipcMain.handle("open-resource", async (_event, resourcePath, type) => {
   try {
-    if (!path) return { ok: false, error: "경로가 없습니다." };
-    const isWebLink = type === "link" || path.startsWith("http://") || path.startsWith("https://");
+    if (!resourcePath) return { ok: false, error: "경로가 없습니다." };
+    const isWebLink = type === "link" || resourcePath.startsWith("http://") || resourcePath.startsWith("https://");
     if (isWebLink) {
-      await shell.openExternal(path);
+      await shell.openExternal(resourcePath);
     } else {
-      const err = await shell.openPath(path);
+      const err = await shell.openPath(resourcePath);
       if (err) return { ok: false, error: err };
     }
     return { ok: true };
@@ -217,6 +217,44 @@ ipcMain.handle("open-resource", async (_event, path, type) => {
     return { ok: false, error: e.message };
   }
 });
+
+ipcMain.handle("select-file-or-folder", async (_event, type) => {
+  try {
+    const win = mainWindow && !mainWindow.isDestroyed() ? mainWindow : null;
+    const isFolder = type === "folder";
+    const finalOptions = {
+      title: isFolder ? "폴더 선택" : "파일 선택",
+      properties: isFolder ? ["openDirectory"] : ["openFile"]
+    };
+
+    let result;
+    if (win) {
+      result = await dialog.showOpenDialog(win, finalOptions);
+    } else {
+      result = await dialog.showOpenDialog(finalOptions);
+    }
+
+    if (result.canceled || !result.filePaths || result.filePaths.length === 0) {
+      return null;
+    }
+    return result.filePaths[0];
+  } catch {
+    return null;
+  }
+});
+
+ipcMain.handle("check-path-exists", async (_event, filePath) => {
+  if (!filePath || typeof filePath !== "string") return false;
+  const isWebLink = filePath.startsWith("http://") || filePath.startsWith("https://");
+  if (isWebLink) return true;
+  try {
+    await fs.promises.access(filePath, fs.constants.F_OK);
+    return true;
+  } catch {
+    return false;
+  }
+});
+
 
 app.whenReady().then(() => {
   createWindow();
