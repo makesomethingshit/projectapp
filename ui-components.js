@@ -42,6 +42,7 @@ import {
   getCompletionItemKey,
   getCompletionWeight,
   getCompletionContributors,
+  getRollupExplanation,
   getIncomingLinks,
   getOutgoingLinks,
   getProgressSegments,
@@ -339,28 +340,56 @@ export function advanceSegmentsMarkup(projectId) {
   return segmentsMarkup(segments, "진행도 합산");
 }
 
+function rollupRowTypeLabel(row) {
+  if (row.sourceType === "formula") return "수식";
+  if (row.sourceType === "project") return "외부 반영";
+  if (row.type === "project") return "하위 프로젝트";
+  if (row.type === "task") return "할 일";
+  return "기본값";
+}
+
+function rollupRowMeta(row, metric) {
+  if (row.sourceType) {
+    return `요청 ${Math.round(row.requestedWeight)}% / 반영 ${Math.round(row.effectiveWeight)}%`;
+  }
+  if (row.type === "fallback") {
+    return "기여 항목 없음. 프로젝트 기본값을 사용합니다.";
+  }
+  if (metric === "completion") {
+    return `가중치 ${Math.round(row.weight)}%`;
+  }
+  return `평균 몫 ${Math.round(row.share)}%`;
+}
+
 export function rollupStructureMarkup(projectId, metric) {
-  const segments = metric === "advance" ? getAdvanceSegments(projectId) : getProgressSegments(projectId);
+  const explanation = getRollupExplanation(projectId, metric);
+  const rows = [
+    ...explanation.contributors,
+    ...explanation.incoming.map((item) => ({ ...item, external: true }))
+  ];
   const emptyLabel = metric === "advance" ? "진행도에 반영되는 항목이 없습니다" : "완성도에 반영되는 항목이 없습니다";
-  if (!segments.length) return `<div class="rollup-breakdown empty">${emptyLabel}</div>`;
+  if (!rows.length) return `<div class="rollup-breakdown empty">${emptyLabel}</div>`;
 
   return `
     <div class="rollup-breakdown">
-      ${segments.map((segment) => `
-        <div class="rollup-breakdown-row ${segment.external ? "external" : ""}">
+      <div class="rollup-summary">${escapeHtml(explanation.summary)}</div>
+      ${rows.map((row) => `
+        <div class="rollup-breakdown-row ${row.external ? "external" : ""}" data-rollup-row-type="${escapeHtml(row.sourceType || row.type)}">
           <span class="breakdown-name">
-            <strong>${escapeHtml(segment.name)}</strong>
-            <small>${segment.external ? "외부 반영" : "직접 합산"}</small>
+            <strong>${escapeHtml(row.name)}</strong>
+            <small>${rollupRowTypeLabel(row)}</small>
           </span>
           <span class="breakdown-meter" aria-hidden="true">
-            <i style="--value:${segment.progress}%"></i>
+            <i style="--value:${row.value}%"></i>
           </span>
-          <span class="breakdown-number">${segment.progress}%</span>
+          <span class="breakdown-number">${row.value}%</span>
           <span class="breakdown-weight">
-            ${metric === "completion" && !segment.external && segment.key ? `
-              <input type="number" min="0" max="100" step="1" value="${Math.round(segment.weightInput)}" data-completion-weight="${segment.key}" data-weight-project="${projectId}" aria-label="${escapeHtml(segment.name)} 완성도 합산 비율" />
-            ` : `${Math.round(segment.width)}%`}
+            ${metric === "completion" && !row.external && row.key ? `
+              <input type="number" min="0" max="100" step="1" value="${Math.round(row.weight)}" data-completion-weight="${row.key}" data-weight-project="${projectId}" aria-label="${escapeHtml(row.name)} 완성도 합산 비율" />
+              <small>가중치 ${Math.round(row.weight)}%</small>
+            ` : rollupRowMeta(row, metric)}
           </span>
+          <span class="breakdown-influence">+${Math.round(row.influence)}%p</span>
         </div>
       `).join("")}
     </div>

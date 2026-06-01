@@ -34,6 +34,7 @@
 4. 기여 항목이 없으면 프로젝트의 저장된 `progress`를 씁니다.
 5. `getRollupProgress()`는 여기에 외부 프로젝트/수식 링크 영향을 섞습니다. 외부 영향 합계는 최대 90%로 제한됩니다.
 6. UI에서 표시용 완성도는 `getProjectDisplayProgress()`를 통해 읽습니다. 이 함수는 현재 `getRollupProgress()`의 명시적 표시용 별칭입니다.
+7. `getRollupExplanation(projectId, "completion")`은 같은 계산 흐름에서 파생된 설명 데이터만 반환합니다. 별도 완성도 값을 저장하지 않습니다.
 
 중요한 의미:
 
@@ -48,6 +49,7 @@
 3. 기여 항목이 없으면 프로젝트의 저장된 `advance`를 쓰고, 없으면 `progress`를 fallback으로 씁니다.
 4. 외부 프로젝트/수식 링크 영향을 섞되, 외부 영향 합계는 최대 90%입니다.
 5. UI에서 표시용 진행도는 `getProjectDisplayAdvance()`를 통해 읽습니다. 이 함수는 현재 `getRollupAdvance()`의 명시적 표시용 별칭입니다.
+6. `getRollupExplanation(projectId, "advance")`은 하위 프로젝트와 직접 작업의 평균 몫, 외부/수식 반영분을 파생 데이터로 설명합니다.
 
 완성도는 가중 기여자를 지원하지만 진행도는 평균 중심입니다. 이 차이는 제품 의도 확인이 필요합니다.
 
@@ -112,6 +114,7 @@
 
 - 프로젝트 `progress`와 `advance`는 기여 항목이 없을 때의 fallback으로 취급합니다.
 - 표시와 요약에는 `getProjectDisplayProgress()`와 `getProjectDisplayAdvance()`를 사용합니다. 세그먼트, 병목, 수식 내부 계산처럼 계산 로직 자체가 필요한 곳은 `getRollupProgress()`와 `getRollupAdvance()`를 직접 사용할 수 있습니다.
+- 롤업 설명 UI는 `getRollupExplanation()` 결과를 사용합니다. 설명 행, 비중, 영향도는 모두 계산 시점의 파생값이며 저장하지 않습니다.
 - 가져오기나 대량 변경 후에는 정규화 함수를 사용합니다.
 - 같은 관계를 `parentId`와 `projectLinks`에 동시에 표현하지 않습니다.
 - 프로젝트 삭제 시 하위 작업, 프로젝트 링크, 수식 링크, 수식 입력 링크, 아카이브 링크, 레이아웃 위치를 함께 정리합니다.

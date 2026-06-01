@@ -35,10 +35,11 @@ import { state } from "./state.js";
 // L298   getOutgoingLinks
 // L302   getRollupProgress
 // L325   getRollupAdvance
-// L347   getProgressSegments
-// L396   getAdvanceSegments
-// L478   getExternalLinkDrag
-// L493   getInternalContributorDrag
+// L524   getRollupExplanation
+// L594   getProgressSegments
+// L643   getAdvanceSegments
+// L684   getExternalLinkDrag
+// L701   getInternalContributorDrag
 // ==============================================================
 
 export function clampProgress(value) {
@@ -417,6 +418,179 @@ export function getProjectDisplayAdvance(projectId) {
   return getRollupAdvance(projectId);
 }
 
+function roundShare(value) {
+  return Math.round(value);
+}
+
+function getInternalExplanation(projectId, metric, seen = new Set()) {
+  const project = getProject(projectId);
+  if (!project) {
+    return {
+      mode: "fallback",
+      ownValue: 0,
+      contributors: []
+    };
+  }
+
+  if (metric === "completion") {
+    const contributors = getCompletionContributors(projectId);
+    if (!contributors.length) {
+      const value = clampProgress(project.progress);
+      return {
+        mode: "fallback",
+        ownValue: value,
+        contributors: [{
+          type: "fallback",
+          id: project.id,
+          name: project.name,
+          value,
+          share: 100,
+          influence: value
+        }]
+      };
+    }
+
+    const fallback = Math.round(100 / contributors.length);
+    const weighted = contributors.map((item) => {
+      const key = getCompletionItemKey(item.type, item.id);
+      const weight = getCompletionWeight(projectId, key, fallback);
+      const value = item.type === "project" ? getRollupProgress(item.id, new Set(seen)) : item.value();
+      return { ...item, key, weight, value };
+    });
+    const totalWeight = weighted.reduce((sum, item) => sum + item.weight, 0) || 1;
+    const ownValue = Math.round(weighted.reduce((sum, item) => sum + item.value * item.weight, 0) / totalWeight);
+    return {
+      mode: "weighted",
+      ownValue,
+      contributors: weighted.map((item) => ({
+        type: item.type,
+        id: item.id,
+        key: item.key,
+        name: item.name,
+        value: item.value,
+        weight: item.weight,
+        share: roundShare((item.weight / totalWeight) * 100),
+        influence: Math.round((item.value * item.weight) / totalWeight)
+      }))
+    };
+  }
+
+  const children = getChildProjects(projectId).filter((child) => child.contributionMode !== "completion");
+  const advanceTasks = getProjectTasks(projectId).filter((task) => taskContributesTo(task, "advance"));
+  const contributors = [
+    ...children.map((child) => ({
+      type: "project",
+      id: child.id,
+      name: child.name,
+      value: getRollupAdvance(child.id, new Set(seen))
+    })),
+    ...advanceTasks.map((task) => ({
+      type: "task",
+      id: task.id,
+      name: task.name,
+      value: clampProgress(task.advance)
+    }))
+  ];
+
+  if (!contributors.length) {
+    const value = clampProgress(project.advance ?? project.progress);
+    return {
+      mode: "fallback",
+      ownValue: value,
+      contributors: [{
+        type: "fallback",
+        id: project.id,
+        name: project.name,
+        value,
+        share: 100,
+        influence: value
+      }]
+    };
+  }
+
+  const share = 100 / contributors.length;
+  const ownValue = Math.round(contributors.reduce((sum, item) => sum + item.value, 0) / contributors.length);
+  return {
+    mode: "average",
+    ownValue,
+    contributors: contributors.map((item) => ({
+      ...item,
+      share: roundShare(share),
+      influence: Math.round(item.value / contributors.length)
+    }))
+  };
+}
+
+export function getRollupExplanation(projectId, metric = "completion", seen = new Set()) {
+  const normalizedMetric = metric === "advance" ? "advance" : "completion";
+  const nextSeen = new Set(seen);
+  nextSeen.add(Number(projectId));
+  const internal = getInternalExplanation(projectId, normalizedMetric, nextSeen);
+  const incomingProjectLinks = getIncomingLinks(projectId, normalizedMetric)
+    .filter((link) => !nextSeen.has(link.sourceId))
+    .map((link) => ({ ...link, sourceType: "project" }));
+  const incomingFormulaLinks = getIncomingFormulaLinks(projectId, normalizedMetric)
+    .map((link) => ({ ...link, sourceType: "formula" }));
+  const incomingLinks = [...incomingProjectLinks, ...incomingFormulaLinks];
+  const incomingRequestedWeight = incomingLinks.reduce((sum, link) => sum + link.weight, 0);
+  const incomingWeight = Math.min(90, incomingRequestedWeight);
+  const incomingScale = incomingRequestedWeight > incomingWeight && incomingRequestedWeight > 0
+    ? incomingWeight / incomingRequestedWeight
+    : 1;
+  const ownWeight = 100 - incomingWeight;
+  const incoming = incomingLinks.map((link) => {
+    const source = link.sourceType === "formula" ? getFormulaNode(link.sourceId) : getProject(link.sourceId);
+    const value = link.sourceType === "formula"
+      ? getFormulaValue(link.sourceId, normalizedMetric)
+      : normalizedMetric === "advance"
+        ? getRollupAdvance(link.sourceId, new Set(nextSeen))
+        : getRollupProgress(link.sourceId, new Set(nextSeen));
+    const effectiveWeight = link.weight * incomingScale;
+    return {
+      sourceType: link.sourceType,
+      id: link.sourceId,
+      name: link.sourceType === "formula" ? source?.title || "수식" : source?.name || "외부 프로젝트",
+      value,
+      requestedWeight: link.weight,
+      effectiveWeight: Math.round(effectiveWeight),
+      influence: Math.round((value * effectiveWeight) / 100)
+    };
+  });
+  const incomingScore = incomingLinks.reduce((sum, link) => {
+    const value = link.sourceType === "formula"
+      ? getFormulaValue(link.sourceId, normalizedMetric)
+      : normalizedMetric === "advance"
+        ? getRollupAdvance(link.sourceId, new Set(nextSeen))
+        : getRollupProgress(link.sourceId, new Set(nextSeen));
+    return sum + value * link.weight * incomingScale;
+  }, 0);
+  const finalValue = Math.round((internal.ownValue * ownWeight + incomingScore) / 100);
+  const metricLabel = normalizedMetric === "advance" ? "진행도" : "완성도";
+  const modeLabel = internal.mode === "weighted"
+    ? "가중 합산"
+    : internal.mode === "average"
+      ? "평균 합산"
+      : "기본값";
+  const summary = incoming.length
+    ? `${metricLabel} ${modeLabel} ${internal.ownValue}%, 외부 반영 ${incomingWeight}% -> 최종 ${finalValue}%`
+    : `${metricLabel} ${modeLabel} ${internal.ownValue}% -> 최종 ${finalValue}%`;
+
+  return {
+    metric: normalizedMetric,
+    projectId: Number(projectId),
+    ownValue: internal.ownValue,
+    finalValue,
+    ownWeight,
+    incomingWeight,
+    incomingRequestedWeight,
+    incomingScale,
+    mode: internal.mode,
+    summary,
+    contributors: internal.contributors,
+    incoming
+  };
+}
+
 export function getProgressSegments(projectId, includeExternal = true) {
   const incoming = includeExternal ? [
     ...getIncomingLinks(projectId, "completion"),
@@ -468,6 +642,8 @@ export function getProgressSegments(projectId, includeExternal = true) {
 
 export function getAdvanceSegments(projectId) {
   const children = getChildProjects(projectId).filter((child) => child.contributionMode !== "completion");
+  const directTasks = getProjectTasks(projectId);
+  const advanceTasks = directTasks.filter((task) => taskContributesTo(task, "advance"));
   const incoming = [
     ...getIncomingLinks(projectId, "advance"),
     ...getIncomingFormulaLinks(projectId, "advance").map((link) => ({ ...link, sourceType: "formula" }))
@@ -488,19 +664,14 @@ export function getAdvanceSegments(projectId) {
       external: true
     };
   });
-  if (children.length) {
-    const width = baseWidth / children.length;
+  const contributors = [
+    ...children.map((child) => ({ id: child.id, name: child.name, progress: getRollupAdvance(child.id) })),
+    ...advanceTasks.map((task) => ({ id: task.id, name: task.name, progress: clampProgress(task.advance) }))
+  ];
+  if (contributors.length) {
+    const width = baseWidth / contributors.length;
     return [
-      ...children.map((child) => ({ id: child.id, name: child.name, progress: getRollupAdvance(child.id), width })),
-      ...externalSegments
-    ];
-  }
-  const directTasks = getProjectTasks(projectId);
-  const advanceTasks = directTasks.filter((task) => taskContributesTo(task, "advance"));
-  if (advanceTasks.length) {
-    const width = baseWidth / advanceTasks.length;
-    return [
-      ...advanceTasks.map((task) => ({ id: task.id, name: task.name, progress: clampProgress(task.advance), width })),
+      ...contributors.map((item) => ({ ...item, width })),
       ...externalSegments
     ];
   }

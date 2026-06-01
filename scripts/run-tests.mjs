@@ -14,6 +14,8 @@ const assertionTests = [
   "test_bottleneck_alert_design.mjs",
   "test_bottleneck_hierarchy_direction.mjs",
   "test_project_progress_rollup_contract.mjs",
+  "test_rollup_explanation.mjs",
+  "test_rollup_explanation_markup.mjs",
   "test_encoding_integrity.mjs",
   "test_detail_bottleneck_navigation.mjs",
   "test_graph_navigation.mjs",

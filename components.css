@@ -695,6 +695,15 @@ svg {
   padding-top: 8px;
 }
 
+.rollup-summary {
+  border-top: 1px solid #ededed;
+  padding-top: 10px;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.4;
+}
+
 .rollup-breakdown.empty {
   color: var(--quiet);
   font-size: 12px;
@@ -702,7 +711,7 @@ svg {
 
 .rollup-breakdown-row {
   display: grid;
-  grid-template-columns: minmax(0, 1.25fr) minmax(96px, 1fr) 54px 58px;
+  grid-template-columns: minmax(0, 1.18fr) minmax(96px, 1fr) 54px minmax(86px, 0.72fr) 62px;
   gap: 12px;
   align-items: center;
   border-top: 1px solid #ededed;
@@ -761,7 +770,8 @@ svg {
 }
 
 .breakdown-number,
-.breakdown-weight {
+.breakdown-weight,
+.breakdown-influence {
   color: var(--muted);
   font-size: 11px;
   font-weight: 800;
@@ -771,6 +781,19 @@ svg {
 
 .breakdown-weight {
   color: var(--quiet);
+}
+
+.breakdown-weight small {
+  display: block;
+  margin-top: 4px;
+  color: var(--quiet);
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.breakdown-influence {
+  color: var(--text);
 }
 
 .breakdown-weight input {
@@ -1866,7 +1889,7 @@ svg {
   }
 
   .rollup-breakdown-row {
-    grid-template-columns: minmax(0, 1fr) 48px;
+    grid-template-columns: minmax(0, 1fr) 54px;
   }
 
   .breakdown-meter {
@@ -1876,6 +1899,11 @@ svg {
 
   .breakdown-weight {
     display: block;
+    text-align: left;
+  }
+
+  .breakdown-influence {
+    text-align: right;
   }
 
   .task-board {
