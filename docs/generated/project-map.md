@@ -5,6 +5,7 @@
 ## 루트 앱 파일
 
 - `package.json`: Electron 앱 메타데이터, 실행 스크립트, 빌드 포함 파일, 의존성.
+- `scripts/run-tests.mjs`: 루트 독립 테스트를 순서대로 실행하는 `npm test` 진입점.
 - `main.js`: Electron main process. 창 생성, 개발 중 자동 reload, 상단 고정, 집중 위젯, 가져오기/내보내기, 리소스 열기 IPC.
 - `preload.js`: 렌더러와 Electron 기능 사이의 브리지.
 - `index.html`: 메인 앱 셸, 상단 바, 패널, 모달 골격.
@@ -72,9 +73,10 @@ UI 마크업을 바꾸기 전 이 파일들을 확인합니다.
 - `test_graph_navigation.mjs`
 - `test_graph_port_labels.mjs`
 - `test_graph_selection.mjs`
+- `test_local_file_bridge.mjs`
 - `test_build_data.js`
 
-`package.json`에는 전체 테스트를 실행하는 스크립트가 없습니다.
+`package.json`에는 전체 회귀 확인용 `npm test` 스크립트가 있습니다.
 
 ## 기존 문서
 

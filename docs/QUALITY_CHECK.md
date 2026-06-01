@@ -6,14 +6,21 @@
 
 ```bash
 npm run dev
+npm test
 npm run dist
 ```
 
-현재 `lint`, `typecheck`, `test`, `build` 스크립트는 없습니다.
+현재 `lint`, `typecheck`, `build` 스크립트는 없습니다. 자동 회귀 확인은 `npm test`를 우선 사용합니다.
 
 ## 테스트 명령
 
-루트에 독립 실행형 Node 테스트 파일이 있습니다. 직접 실행합니다.
+루트에 독립 실행형 Node 테스트 파일이 있고, `scripts/run-tests.mjs`가 이를 순서대로 실행합니다.
+
+```bash
+npm test
+```
+
+개별 확인이 필요할 때는 아래 파일을 직접 실행합니다.
 
 ```bash
 node test_archive_model.mjs
@@ -34,14 +41,17 @@ node test_detail_bottleneck_navigation.mjs
 node test_graph_navigation.mjs
 node test_graph_port_labels.mjs
 node test_graph_selection.mjs
+node test_local_file_bridge.mjs
 node test_build_data.js
 ```
 
-`test_build_data.js`는 일부 결과를 출력하는 진단용 성격이 강하고 모든 기대값을 assert하지 않습니다. 완전한 자동 테스트로 보지 않습니다.
+`test_build_data.js`는 일부 결과를 출력하는 진단용 성격이 강하고 모든 기대값을 assert하지 않습니다. `npm test`에 포함되어 있지만 완전한 자동 테스트로 보지는 않습니다.
+
+PowerShell 실행 정책 때문에 `npm test`가 막히면 `npm.cmd test`를 사용합니다.
 
 ## 수동 QA 체크리스트
 
-- `npm run dev`로 앱을 실행합니다.
+- 앱이 이미 켜져 있으면 그 창에서 확인합니다. 꺼져 있을 때만 `npm run dev`로 실행합니다.
 - 프로젝트 목록이 렌더링되는지 확인합니다.
 - 상세, 그래프, 아카이브 화면을 전환합니다.
 - 프로젝트를 선택했을 때 상세 패널이 바뀌는지 확인합니다.
@@ -50,6 +60,7 @@ node test_build_data.js
 - 아카이브 리소스를 추가/수정/삭제하고 프로젝트 연결/분리를 확인합니다.
 - 부모/자식 프로젝트 관계를 만들거나 수정해도 순환 구조가 생기지 않는지 확인합니다.
 - 데이터를 내보낸 뒤 JSON 구조를 확인합니다.
+- JSON을 가져온 뒤 프로젝트/작업/아카이브 링크가 정규화되고 깨진 참조가 제거되는지 확인합니다.
 - 집중 위젯을 열고 작업 업데이트가 동기화되는지 확인합니다.
 
 ## 디자인 체크리스트
