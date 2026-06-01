@@ -1,0 +1,12 @@
+node_modules/
+dist/
+*.log
+*.bak
+backup/
+data/
+iii-extract/
+*.zip
+*.lnk
+.superpowers/
+.codegraph/
+.codex-skill-repos/

@@ -1,0 +1,56 @@
+{
+  "name": "studio-project-widget",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A minimal always-on project widget app.",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron .",
+    "dist": "electron-builder --win portable"
+  },
+  "build": {
+    "appId": "design.workshop.project-widget",
+    "productName": "작업실",
+    "files": [
+      "index.html",
+      "focus-widget.html",
+      "focus-widget.css",
+      "focus-widget.js",
+      "styles.css",
+      "variables.css",
+      "layout.css",
+      "components.css",
+      "modals.css",
+      "graph.css",
+      "graph-interactions.css",
+      "app.js",
+      "app-graph-actions.js",
+      "app-graph-events.js",
+      "app-modals.js",
+      "archive-model.js",
+      "detail-navigation.js",
+      "graph-navigation.js",
+      "graph-selection.js",
+      "state.js",
+      "calculator.js",
+      "ui-components.js",
+      "graph-components.js",
+      "main.js",
+      "preload.js",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        "portable"
+      ]
+    },
+    "portable": {
+      "artifactName": "작업실.exe"
+    }
+  },
+  "devDependencies": {
+    "electron": "^31.0.0",
+    "electron-builder": "^26.8.1"
+  }
+}

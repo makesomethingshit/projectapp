@@ -1,0 +1,1485 @@
+.workspace.global-graph-mode .detail-panel {
+  padding: 0;
+}
+
+.workspace.global-graph-mode #projectDetail {
+  padding-right: 0;
+  overflow: hidden;
+}
+
+.workspace.global-graph-mode .graph-view-full {
+  padding: 0;
+}
+
+.workspace.global-graph-mode .graph-view-full {
+  height: calc(100vh - 58px);
+  min-height: calc(100vh - 58px);
+  background:
+    radial-gradient(circle at 20% 16%, color-mix(in srgb, var(--surface) 52%, transparent), transparent 28%),
+    radial-gradient(color-mix(in srgb, var(--line-strong) 40%, transparent) 1px, transparent 1px),
+    var(--panel-raised);
+  background-size: auto, 20px 20px, auto;
+}
+
+.workspace.global-graph-mode .graph-view-full .graph-stage {
+  height: 100%;
+  min-height: calc(100vh - 58px);
+}
+
+.workspace.global-graph-mode .graph-view-full .graph-canvas {
+  min-height: calc(100vh - 58px);
+}
+
+.workspace.global-graph-mode .graph-view-full .graph-minimap {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+}
+
+/* ?결??반영 비율 배? ????*/
+.graph-edge-weight-badge {
+  position: absolute;
+  left: var(--x);
+  top: var(--y);
+  transform: translate(-50%, -50%) scale(var(--graph-zoom, 1));
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  border: 1px solid var(--glass-line);
+  border-radius: 999px;
+  padding: 2px 3px 2px 7px;
+  background: var(--glass-surface);
+  backdrop-filter: var(--glass-blur);
+  color: var(--text);
+  font-size: 10px;
+  font-weight: 800;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08), var(--glass-highlight);
+  z-index: 4;
+  transition: transform 0.16s var(--ease), border-color 0.16s var(--ease), background-color 0.16s var(--ease);
+}
+
+.graph-edge-weight-badge:hover {
+  border-color: var(--text);
+  background: var(--glass-strong);
+  transform: translate(-50%, -50%) scale(calc(var(--graph-zoom, 1) * 1.08));
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12), var(--glass-highlight);
+}
+
+.graph-edge-weight-badge [data-graph-weight-badge] {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.graph-edge-break {
+  width: 14px;
+  height: 14px;
+  border: 1px solid transparent;
+  border-radius: 50%;
+  padding: 0;
+  background:
+    linear-gradient(var(--muted), var(--muted)) center / 7px 1px no-repeat,
+    transparent;
+  cursor: pointer;
+  opacity: 0.55;
+}
+
+.graph-edge-break:hover,
+.graph-edge-break:focus-visible {
+  border-color: var(--coral);
+  background:
+    linear-gradient(var(--coral), var(--coral)) center / 7px 1px no-repeat,
+    color-mix(in srgb, var(--coral) 9%, transparent);
+  opacity: 1;
+}
+
+/* 반영 비율 미니 조절 ?업 */
+.weight-slider-popup {
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.16);
+}
+.weight-slider-popup::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--glass-sheen);
+  opacity: 0.42;
+  pointer-events: none;
+}
+
+/* Space ???래??면 ?동 모드 커서 ????*/
+.graph-stage.space-panning-active,
+.graph-stage.space-panning-active * {
+  cursor: grab !important;
+}
+
+/* 반영??배? ????*/
+.graph-item-weight-badge {
+  font-size: 9.5px;
+  font-weight: 800;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  padding: 1.5px 5px;
+  border-radius: 999px;
+  flex-shrink: 0;
+  line-height: 1;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  cursor: pointer;
+}
+
+button.graph-item-weight-badge {
+  font: inherit;
+}
+
+.graph-item-weight-badge:hover,
+.graph-item-weight-badge:focus-visible {
+  border-color: var(--text);
+  background: var(--panel-soft);
+}
+
+.graph-item-weight-badge.project-badge {
+  color: var(--coral);
+  border-color: color-mix(in srgb, var(--coral) 40%, transparent);
+  background: color-mix(in srgb, var(--coral) 4%, var(--surface));
+}
+
+.graph-item-weight-badge.task-badge {
+  color: var(--muted);
+  border-color: var(--line);
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+}
+
+/* ?로?트 ?결???내 배? */
+.graph-child-project-links {
+  margin-bottom: 4px;
+}
+
+.graph-item-link-badge {
+  font-size: 8.5px;
+  font-weight: 800;
+  padding: 2px 5px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
+  border: 1px solid var(--glass-line);
+}
+
+.graph-item-link-badge.outgoing {
+  background: color-mix(in srgb, var(--text) 5%, transparent);
+  color: var(--muted);
+  border-color: var(--line);
+}
+
+.graph-item-link-badge.incoming {
+  background: color-mix(in srgb, var(--coral) 6%, transparent);
+  color: var(--coral);
+  border-color: color-mix(in srgb, var(--coral) 18%, transparent);
+}
+
+/* ??? ?위 ?로?트 카드 + 반영??Port 버튼 ?퍼 ??? */
+.graph-child-project-wrap {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+/* ?퍼 ?에 ?을 ??카드???체 margin 무효??*/
+.graph-child-project-wrap > .graph-child-project-card {
+  flex: 1;
+  min-width: 0;
+  margin-left: 0;
+}
+
+.graph-child-port-stack {
+  display: grid;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.graph-child-port-stack.in .graph-port-item {
+  justify-content: flex-end;
+}
+
+.graph-child-port-stack.out .graph-port-item {
+  justify-content: flex-start;
+}
+
+/* Port 버튼 공통 */
+.graph-child-port {
+  width: 10px;
+  height: 10px;
+  border: 1.5px solid var(--port-ring);
+  border-radius: 50%;
+  padding: 0;
+  background: var(--port-completion);
+  cursor: crosshair;
+  opacity: 0.25;
+  z-index: 10;
+  box-shadow: 0 0 0 2px var(--port-halo), 0 1px 4px rgba(83, 69, 43, 0.2);
+  transition: opacity 0.16s var(--ease), box-shadow 0.16s var(--ease), background-color 0.16s var(--ease);
+}
+
+.graph-child-port.metric-advance {
+  background: var(--port-advance);
+  border-color: var(--port-ring);
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 2.5px var(--port-advance), 0 0 0 2px var(--port-halo), 0 1px 4px rgba(83, 69, 43, 0.2);
+}
+
+.graph-child-port.metric-completion {
+  background: var(--port-completion);
+  border-color: var(--port-ring);
+  border-radius: 50%;
+}
+
+.graph-child-port.metric-archive {
+  background: #f4b740;
+  border-color: color-mix(in srgb, #6b4b10 58%, var(--port-ring));
+  border-radius: 4px;
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.45), 0 0 0 2px var(--port-halo), 0 1px 4px rgba(83, 69, 43, 0.2);
+}
+
+/* ?퍼 hover ???트 버튼 강조 */
+.graph-child-project-wrap:hover .graph-child-port,
+.graph-child-port:focus-visible {
+  opacity: 1;
+}
+
+.graph-child-port:hover,
+.graph-child-port:focus-visible {
+  background: var(--text);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--text) 18%, transparent);
+}
+
+/* ?결 ?래??in-port ?이?이??*/
+.graph-child-port-in:hover {
+  background: var(--coral);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--coral) 18%, transparent);
+}
+
+/* ??? ?위 ?로?트 ?션 (?계 그룹) ??? */
+.graph-child-project-section {
+  position: relative;
+  display: grid;
+  gap: 3px;
+  margin-left: calc(var(--depth, 0) * 12px);
+}
+
+/* ?식 ?일 ?는 중첩 ?션???을 ???쪽 ?리 ?인 */
+.graph-child-project-section:has(.graph-child-project-tasks)::before,
+.graph-child-project-section:has(.graph-child-project-section)::before {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 26px;
+  bottom: 4px;
+  width: 1px;
+  background: var(--line);
+  border-radius: 1px;
+  pointer-events: none;
+}
+
+/* ?일 목록 그룹 */
+.graph-child-project-tasks {
+  display: grid;
+  gap: 3px;
+  padding-left: 14px;
+}
+
+.graph-child-project-tasks .graph-task-card {
+  margin: 0;
+}
+
+/* ?래??들 */
+.graph-child-project-drag-handle {
+  flex-shrink: 0;
+  width: 16px;
+  min-height: 28px;
+  border: 0;
+  border-radius: 4px;
+  padding: 0;
+  background: transparent;
+  color: var(--line-strong);
+  font-size: 11px;
+  line-height: 1;
+  cursor: grab;
+  opacity: 0.25;
+  transition: opacity 0.16s var(--ease), color 0.16s var(--ease);
+}
+
+.graph-child-project-wrap:hover .graph-child-project-drag-handle,
+.graph-child-project-drag-handle:focus-visible {
+  opacity: 1;
+}
+
+.graph-child-project-drag-handle:hover {
+  color: var(--text);
+}
+
+.graph-child-project-drag-handle:active {
+  cursor: grabbing;
+}
+
+/* ?래???션 ????- pointer-events??건드리? ?음 (setPointerCapture ??) */
+.graph-child-project-section.dragging {
+  opacity: 0.45;
+  transition: none;
+}
+
+/* ?롭 가???이?이??*/
+.graph-node.drop-target {
+  border-color: var(--text);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--text) 20%, transparent), 0 4px 16px rgba(0,0,0,0.1);
+}
+
+/* Final port identity override: completion and advance must never read as the same control. */
+.graph-port[data-graph-connect-metric="completion"],
+.graph-child-port[data-graph-connect-metric="completion"] {
+  border-radius: 50% !important;
+  background: var(--port-completion) !important;
+  border-color: var(--port-ring) !important;
+  box-shadow:
+    0 0 0 2px var(--port-halo),
+    0 1px 4px rgba(83, 69, 43, 0.24) !important;
+}
+
+.graph-port[data-graph-connect-metric="advance"],
+.graph-child-port[data-graph-connect-metric="advance"] {
+  border-radius: 50% !important;
+  background: var(--port-advance) !important;
+  border-color: var(--port-ring) !important;
+  box-shadow:
+    inset 0 0 0 3px var(--port-advance),
+    0 0 0 2px var(--port-halo),
+    0 1px 4px rgba(83, 69, 43, 0.24) !important;
+}
+
+.graph-port[data-graph-connect-metric="archive"],
+.graph-child-port[data-graph-connect-metric="archive"] {
+  border-radius: 4px !important;
+  background: #f4b740 !important;
+  border-color: color-mix(in srgb, #6b4b10 58%, var(--port-ring)) !important;
+  box-shadow:
+    inset 0 0 0 2px rgba(255, 255, 255, 0.45),
+    0 0 0 2px var(--port-halo),
+    0 1px 4px rgba(83, 69, 43, 0.24) !important;
+}
+
+
+/* --- True Machine Docking Layout Overrides V2 --- */
+
+/* 1. 부모 노드 전체를 하나의 외각 섀시(Chassis)로 복원 (포트 노출을 위해 overflow: visible) */
+.graph-node.project-group {
+  border: 1px solid var(--glass-line) !important;
+  border-radius: 12px !important;
+  background: var(--glass-surface) !important;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12), var(--glass-highlight) !important;
+  padding: 0 !important;
+  gap: 0 !important;
+  overflow: visible !important; /* 포트가 잘리지 않게 visible 설정 */
+  display: flex !important;
+  flex-direction: column !important;
+  max-width: 200px !important;
+  min-width: 154px !important;
+}
+
+/* 다크모드 섀시 배경 */
+:root[data-theme="dark"] .graph-node.project-group {
+  background: rgba(28, 28, 28, 0.97) !important;
+}
+
+/* 2. 부모 내용 영역 (모서리를 섀시 곡률에 맞게 둥글게 처리) */
+.graph-node.project-group > .graph-node-main {
+  padding: 12px 10px !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+  background: transparent !important;
+  border: none !important;
+  border-bottom: 1px solid var(--line) !important;
+  border-top-left-radius: 11px !important;
+  border-top-right-radius: 11px !important;
+}
+
+.graph-node.project-group > .graph-port-stack {
+  top: 40px !important;
+  transform: translateY(-50%) !important;
+  z-index: 18 !important;
+}
+
+.graph-node.project-group > .graph-port-stack-in {
+  left: -52px !important;
+}
+
+.graph-node.project-group > .graph-port-stack-out {
+  right: -52px !important;
+}
+
+/* 선택 상태일 때 섀시 하이라이트 */
+.graph-node.project-group.selected {
+  border-color: var(--text) !important;
+  box-shadow: 
+    0 0 0 3px color-mix(in srgb, var(--text) 15%, transparent),
+    0 16px 36px rgba(0, 0, 0, 0.16),
+    var(--glass-highlight) !important;
+}
+
+.graph-node.project-group.multi-selected {
+  border-color: var(--text) !important;
+  box-shadow: 
+    0 0 0 3px color-mix(in srgb, var(--text) 15%, transparent),
+    0 12px 28px rgba(0, 0, 0, 0.1) !important;
+}
+
+.graph-node.multi-selected:not(.project-group) {
+  border-color: var(--text) !important;
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--text) 15%, transparent),
+    0 12px 28px rgba(0, 0, 0, 0.12) !important;
+}
+
+/* 3. 하위 프로젝트 리스트 및 태스크 그룹 갭 무효화 */
+.graph-node.project-group .graph-project-group-list {
+  border-top: none !important;
+  padding: 0 !important;
+  gap: 0 !important;
+  width: 100% !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: visible !important;
+}
+
+.graph-node.project-group .graph-task-group {
+  border-top: none !important;
+  padding: 0 !important;
+  gap: 0 !important;
+  width: 100% !important;
+  max-height: 190px !important;
+  overflow-y: auto !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+/* 그룹 제목 정렬 */
+.graph-node.project-group .graph-task-group-title {
+  display: block !important;
+  padding: 5px 8px !important;
+  font-size: 8.5px !important;
+  font-weight: 800 !important;
+  color: var(--muted) !important;
+  background: color-mix(in srgb, var(--panel-soft) 30%, transparent) !important;
+  border: none !important;
+  border-bottom: 1px solid var(--line) !important;
+  text-align: left !important;
+}
+
+/* 4. 자식 프로젝트 섹션 및 기계 슬롯(Slot) 래퍼 */
+.graph-node.project-group .graph-child-project-section {
+  margin-left: 0 !important;
+  gap: 0 !important;
+  overflow: visible !important;
+}
+
+.graph-node.project-group .graph-child-project-wrap {
+  position: relative !important; /* 포트 절대 배치의 기준점 */
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  
+  padding: 7px 12px !important;
+  padding-left: calc(12px + var(--depth, 0) * 12px) !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+  
+  border: none !important;
+  border-bottom: 1px solid var(--line) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  
+  /* 기계 레일 슬롯 홈(Slot Rail) 시각화 */
+  background: 
+    linear-gradient(90deg, 
+      color-mix(in srgb, var(--line) 30%, var(--surface)) calc(var(--depth, 0) * 12px), 
+      var(--line) calc(var(--depth, 0) * 12px),
+      var(--line) calc(var(--depth, 0) * 12px + 1px),
+      color-mix(in srgb, var(--surface) 95%, transparent) calc(var(--depth, 0) * 12px + 1px)
+    ) !important;
+  
+  transition: background 0.16s var(--ease) !important;
+}
+
+/* 다크모드 슬롯 레일 배경 */
+:root[data-theme="dark"] .graph-node.project-group .graph-child-project-wrap {
+  background: 
+    linear-gradient(90deg, 
+      color-mix(in srgb, var(--line) 15%, var(--surface)) calc(var(--depth, 0) * 12px), 
+      var(--line-strong) calc(var(--depth, 0) * 12px),
+      var(--line-strong) calc(var(--depth, 0) * 12px + 1px),
+      color-mix(in srgb, var(--surface) 86%, transparent) calc(var(--depth, 0) * 12px + 1px)
+    ) !important;
+}
+
+.graph-node.project-group .graph-child-project-wrap:hover {
+  background: 
+    linear-gradient(90deg, 
+      color-mix(in srgb, var(--line) 30%, var(--surface)) calc(var(--depth, 0) * 12px), 
+      var(--line-strong) calc(var(--depth, 0) * 12px),
+      var(--line-strong) calc(var(--depth, 0) * 12px + 1px),
+      color-mix(in srgb, var(--panel-soft) 86%, transparent) calc(var(--depth, 0) * 12px + 1px)
+    ) !important;
+}
+
+:root[data-theme="dark"] .graph-node.project-group .graph-child-project-wrap:hover {
+  background: 
+    linear-gradient(90deg, 
+      color-mix(in srgb, var(--line) 15%, var(--surface)) calc(var(--depth, 0) * 12px), 
+      var(--line-strong) calc(var(--depth, 0) * 12px),
+      var(--line-strong) calc(var(--depth, 0) * 12px + 1px),
+      color-mix(in srgb, var(--panel-soft) 72%, transparent) calc(var(--depth, 0) * 12px + 1px)
+    ) !important;
+}
+
+/* 자식 카드 버튼 자체 스타일 투명화 및 리셋 */
+.graph-node.project-group .graph-child-project-card {
+  border: none !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  box-shadow: none !important;
+  transform: none !important;
+  width: 100% !important;
+}
+
+/* 5. 포트 스택의 절대 위치 지정 (섀시 좌우 경계선에 정밀 밀착) */
+.graph-node.project-group .graph-child-port-stack {
+  position: absolute !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  z-index: 15 !important;
+  display: grid !important;
+  gap: 4px !important;
+}
+
+.graph-node.project-group .graph-child-port-stack.in {
+  left: -42px !important; /* 라벨이 보이도록 카드 밖에 배치 */
+}
+
+.graph-node.project-group .graph-child-port-stack.out {
+  right: -42px !important; /* 라벨이 보이도록 카드 밖에 배치 */
+}
+
+/* 포트 크기와 불투명도 및 호버 연동 */
+.graph-node.project-group .graph-child-port {
+  width: 9px !important;
+  height: 9px !important;
+  opacity: 0.25 !important;
+}
+
+.graph-node.project-group .graph-child-project-wrap:hover .graph-child-port,
+.graph-node.project-group .graph-child-port:focus-visible,
+.graph-node.project-group .graph-child-port:hover {
+  opacity: 1 !important;
+}
+
+.graph-port.is-idle,
+.graph-child-port.is-idle {
+  opacity: 0.28 !important;
+}
+
+.graph-port.is-connected,
+.graph-child-port.is-connected {
+  opacity: 1 !important;
+  border-color: var(--text) !important;
+  box-shadow:
+    0 0 0 2px var(--port-halo),
+    0 0 0 5px color-mix(in srgb, var(--text) 13%, transparent),
+    0 1px 5px rgba(0, 0, 0, 0.18) !important;
+}
+
+.graph-port.metric-advance.is-connected,
+.graph-child-port.metric-advance.is-connected {
+  box-shadow:
+    inset 0 0 0 3px var(--port-advance),
+    0 0 0 2px var(--port-halo),
+    0 0 0 5px color-mix(in srgb, var(--text) 13%, transparent),
+    0 1px 5px rgba(0, 0, 0, 0.18) !important;
+}
+
+.graph-port.metric-archive.is-connected,
+.graph-child-port.metric-archive.is-connected {
+  box-shadow:
+    inset 0 0 0 2px rgba(255, 255, 255, 0.45),
+    0 0 0 2px var(--port-halo),
+    0 0 0 5px color-mix(in srgb, #f4b740 28%, transparent),
+    0 1px 5px rgba(0, 0, 0, 0.18) !important;
+}
+
+/* 6. 할일 카드 독립 블록 도킹 */
+.graph-node.project-group .graph-child-project-tasks {
+  padding: 0 !important;
+  gap: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+.graph-node.project-group .graph-task-card {
+  border: none !important;
+  border-bottom: 1px solid var(--line) !important;
+  border-radius: 0 !important;
+  
+  padding: 6px 8px !important;
+  padding-left: calc(24px + var(--depth, 0) * 12px) !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+  box-shadow: none !important;
+  transform: none !important;
+  
+  /* 할일 카드용 레일 슬롯 그라디언트 */
+  background: 
+    linear-gradient(90deg, 
+      color-mix(in srgb, var(--line) 30%, var(--surface)) calc(12px + var(--depth, 0) * 12px), 
+      var(--line) calc(12px + var(--depth, 0) * 12px),
+      var(--line) calc(12px + var(--depth, 0) * 12px + 1px),
+      color-mix(in srgb, var(--surface) 90%, transparent) calc(12px + var(--depth, 0) * 12px + 1px)
+    ) !important;
+  
+  transition: background 0.16s var(--ease) !important;
+}
+
+:root[data-theme="dark"] .graph-node.project-group .graph-task-card {
+  background: 
+    linear-gradient(90deg, 
+      color-mix(in srgb, var(--line) 15%, var(--surface)) calc(12px + var(--depth, 0) * 12px), 
+      var(--line-strong) calc(12px + var(--depth, 0) * 12px),
+      var(--line-strong) calc(12px + var(--depth, 0) * 12px + 1px),
+      color-mix(in srgb, var(--surface) 80%, transparent) calc(12px + var(--depth, 0) * 12px + 1px)
+    ) !important;
+}
+
+.graph-node.project-group .graph-task-card:hover {
+  background: 
+    linear-gradient(90deg, 
+      color-mix(in srgb, var(--line) 30%, var(--surface)) calc(12px + var(--depth, 0) * 12px), 
+      var(--line-strong) calc(12px + var(--depth, 0) * 12px),
+      var(--line-strong) calc(12px + var(--depth, 0) * 12px + 1px),
+      color-mix(in srgb, var(--panel-soft) 72%, transparent) calc(12px + var(--depth, 0) * 12px + 1px)
+    ) !important;
+}
+
+/* 비어있음 텍스트 */
+.graph-node.project-group .graph-task-empty {
+  display: block !important;
+  padding: 5px 8px !important;
+  font-size: 8.5px !important;
+  color: var(--quiet) !important;
+  text-align: left !important;
+  border: none !important;
+  border-bottom: 1px solid var(--line) !important;
+  background: transparent !important;
+}
+
+/* 7. 레일 그라디언트가 대체하므로 지저분한 가상 트리라인은 투명화 */
+.graph-node.project-group .graph-child-project-section::before {
+  display: none !important;
+}
+
+/* 8. 최상위 노드 액션 풋터 (섀시 곡률에 맞춰 둥글게 마감) */
+.graph-node.project-group .graph-node-actions {
+  padding: 7px 8px !important;
+  background: color-mix(in srgb, var(--panel-soft) 30%, transparent) !important;
+  border: none !important;
+  border-top: 1px solid var(--line) !important;
+  border-bottom-left-radius: 11px !important;
+  border-bottom-right-radius: 11px !important;
+  gap: 4px !important;
+  box-sizing: border-box !important;
+  width: 100% !important;
+}
+
+/* 9. 도킹 가이드 슬롯 */
+.graph-node.project-group .graph-docking-guide-slot {
+  margin: 4px 8px !important;
+}
+.graph-canvas.graph-child-dragging .graph-node.project-group .graph-docking-guide-slot,
+.graph-canvas.graph-task-dragging .graph-node.project-group .graph-docking-guide-slot {
+  margin: 4px 8px 8px 8px !important;
+}
+
+/* 10. 수식 노드 모듈러 유동 포트 디자인 고도화 */
+.graph-node.formula {
+  min-width: 170px !important;
+  max-width: 240px !important;
+}
+
+.graph-formula-select-wrap {
+  margin-bottom: 8px;
+  width: 100%;
+}
+
+.graph-formula-type-select {
+  width: 100%;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 11px;
+  outline: none;
+  cursor: pointer;
+  font-weight: 600;
+  transition: border-color 0.16s var(--ease), box-shadow 0.16s var(--ease);
+}
+
+.graph-formula-type-select:focus {
+  border-color: var(--text);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--text) 10%, transparent);
+}
+
+.graph-formula-slots-section {
+  margin-top: 8px;
+  border-top: 1px dashed color-mix(in srgb, var(--line) 50%, transparent);
+  padding-top: 6px;
+  text-align: left;
+}
+
+.graph-formula-slots-title {
+  font-size: 9px;
+  font-weight: 800;
+  color: var(--quiet);
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.graph-formula-slots-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.graph-formula-slot-row {
+  position: relative !important; /* 포트 절대 배치 기준 */
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 6px 4px 10px;
+  background: color-mix(in srgb, var(--surface) 60%, transparent);
+  border-radius: 4px;
+  border: 1px solid color-mix(in srgb, var(--line) 30%, transparent);
+}
+
+.graph-formula-slot-row.add-slot {
+  background: transparent;
+  border: 1px dashed color-mix(in srgb, var(--line) 50%, transparent);
+}
+
+.graph-formula-slot-name {
+  flex: 1;
+  font-size: 10px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text);
+  text-align: left;
+}
+
+.graph-formula-slot-name.add-text {
+  color: var(--quiet);
+  font-size: 9px;
+  font-weight: bold;
+}
+
+.formula-slot-weight-input {
+  width: 32px;
+  padding: 2px 4px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 9px;
+  text-align: center;
+  font-weight: bold;
+}
+
+.formula-slot-weight-input::-webkit-outer-spin-button,
+.formula-slot-weight-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.weight-percent {
+  font-size: 9px;
+  color: var(--quiet);
+  font-weight: bold;
+}
+
+.formula-slot-delete-btn {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1;
+  padding: 0 4px;
+  cursor: pointer;
+  border-radius: 3px;
+}
+
+.formula-slot-delete-btn:hover {
+  color: var(--coral);
+  background: color-mix(in srgb, var(--coral) 10%, transparent);
+}
+
+/* 수식 노드 내부 개별 유동 포트 절대 배치 */
+.graph-node.formula .graph-formula-slot-port {
+  position: absolute !important;
+  left: -15px !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  z-index: 10 !important;
+  width: 9px !important;
+  height: 9px !important;
+  opacity: 0.35;
+  transition: opacity 0.16s var(--ease), border-color 0.16s var(--ease), box-shadow 0.16s var(--ease);
+}
+
+.graph-node.formula:hover .graph-formula-slot-port,
+.graph-node.formula .graph-formula-slot-port:hover,
+.graph-node.formula .graph-formula-slot-port:focus-visible {
+  opacity: 1;
+}
+
+.graph-node.formula .graph-formula-slot-port.is-connected {
+  opacity: 1;
+  border-color: var(--text) !important;
+  box-shadow:
+    0 0 0 2px var(--port-halo),
+    0 0 0 5px color-mix(in srgb, var(--text) 13%, transparent),
+    0 1px 5px rgba(0, 0, 0, 0.18) !important;
+}
+
+.graph-node.formula .graph-formula-slot-port.metric-advance.is-connected {
+  box-shadow:
+    inset 0 0 0 3px var(--port-advance),
+    0 0 0 2px var(--port-halo),
+    0 0 0 5px color-mix(in srgb, var(--text) 13%, transparent),
+    0 1px 5px rgba(0, 0, 0, 0.18) !important;
+}
+
+/* 수식 노드의 우측 출력 포트 스택 위치 정렬 (헤더에 맞춤) */
+.graph-node.formula > .graph-port-stack {
+  top: 40px !important;
+  transform: translateY(-50%) !important;
+  z-index: 18 !important;
+}
+
+.graph-node.formula > .graph-port-stack-out {
+  right: -9px !important;
+}
+
+/* --- Compact readable node typography overrides --- */
+.graph-view-full .graph-node.project-group {
+  min-width: 184px !important;
+  max-width: 252px !important;
+}
+
+.graph-view-full .graph-node:not(.project-group) {
+  min-width: 148px !important;
+  max-width: 220px !important;
+}
+
+.graph-node.project-group > .graph-node-main {
+  padding: 10px 11px 9px !important;
+  gap: 4px !important;
+}
+
+.graph-node.project-group > .graph-node-main > strong {
+  display: block !important;
+  max-width: 100% !important;
+  font-size: 12px !important;
+  line-height: 1.18 !important;
+  font-weight: 760 !important;
+  letter-spacing: 0 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+.graph-node.project-group > .graph-node-main > span,
+.graph-node.project-group > .graph-node-main > small {
+  display: block !important;
+  max-width: 100% !important;
+  font-size: 9.5px !important;
+  line-height: 1.2 !important;
+  font-weight: 650 !important;
+  color: var(--muted) !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+.graph-node.project-group .graph-task-group-title {
+  padding: 5px 9px !important;
+  font-size: 8.5px !important;
+  line-height: 1.1 !important;
+  letter-spacing: 0 !important;
+}
+
+.graph-node.project-group .graph-child-project-wrap {
+  min-width: 0 !important;
+  padding-top: 7px !important;
+  padding-bottom: 7px !important;
+}
+
+.graph-node.project-group .graph-child-project-card,
+.graph-node.project-group .graph-task-card {
+  min-width: 0 !important;
+  max-width: 100% !important;
+  gap: 3px !important;
+  overflow: hidden !important;
+}
+
+.graph-node.project-group .graph-child-project-card strong,
+.graph-node.project-group .graph-task-card strong {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto !important;
+  align-items: center !important;
+  gap: 5px !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  font-size: 10.5px !important;
+  line-height: 1.18 !important;
+  font-weight: 720 !important;
+  white-space: nowrap !important;
+}
+
+.graph-node.project-group .graph-child-project-card strong > span:first-child,
+.graph-node.project-group .graph-task-card strong > span:first-child {
+  display: block !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  color: var(--text) !important;
+}
+
+.graph-node.project-group .graph-child-project-card > span,
+.graph-node.project-group .graph-task-card > span {
+  display: block !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  font-size: 8.8px !important;
+  line-height: 1.22 !important;
+  color: var(--quiet) !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+.graph-node.project-group .graph-item-weight-badge {
+  position: static !important;
+  transform: none !important;
+  max-width: 58px !important;
+  padding: 2px 4px !important;
+  font-size: 8px !important;
+  line-height: 1 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  pointer-events: auto !important;
+}
+
+.graph-node-actions {
+  min-width: 0 !important;
+}
+
+.graph-node.project-group .graph-node-actions button,
+.graph-node-actions button {
+  min-width: 0 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+.graph-node.formula {
+  min-width: 176px !important;
+  max-width: 238px !important;
+}
+
+.graph-node.formula .graph-node-main {
+  text-align: left !important;
+}
+
+.graph-node.formula .graph-node-main > strong {
+  display: flex !important;
+  align-items: center !important;
+  min-width: 0 !important;
+  font-size: 12px !important;
+}
+
+.graph-node.formula .graph-node-main strong::before {
+  flex: 0 0 auto !important;
+}
+
+.graph-formula-controls {
+  min-width: 0 !important;
+  gap: 7px !important;
+}
+
+.graph-formula-type-select {
+  min-width: 0 !important;
+  height: 26px !important;
+  font-size: 10.5px !important;
+}
+
+.graph-formula-slot-row {
+  min-width: 0 !important;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto auto !important;
+  gap: 4px !important;
+  padding: 4px 6px 4px 12px !important;
+}
+
+.graph-formula-slot-row.add-slot {
+  grid-template-columns: minmax(0, 1fr) !important;
+}
+
+.graph-formula-slot-name {
+  min-width: 0 !important;
+  max-width: 100% !important;
+  font-size: 9.5px !important;
+  line-height: 1.2 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+.formula-slot-weight-input {
+  width: 34px !important;
+  min-width: 34px !important;
+  font-size: 9px !important;
+  line-height: 1 !important;
+}
+
+.formula-slot-delete-btn {
+  min-width: 18px !important;
+  width: 18px !important;
+  height: 18px !important;
+  padding: 0 !important;
+  display: grid !important;
+  place-items: center !important;
+}
+
+/* Bottleneck Highlight Styles */
+.graph-lines path.external.bottleneck-critical {
+  stroke: var(--coral) !important;
+  stroke-dasharray: 4 3;
+  animation: bottleneck-flow 24s linear infinite;
+}
+
+.graph-lines path.external.bottleneck-warning {
+  stroke: #ff9800 !important;
+  stroke-dasharray: 4 3;
+}
+
+.graph-edge-weight-badge.bottleneck-critical {
+  border-color: var(--coral) !important;
+  background: color-mix(in srgb, var(--coral) 8%, var(--glass-surface)) !important;
+  box-shadow: 0 4px 12px rgba(235, 87, 87, 0.24), 0 0 8px rgba(235, 87, 87, 0.16), var(--glass-highlight) !important;
+}
+
+.graph-edge-weight-badge.bottleneck-warning {
+  border-color: #ff9800 !important;
+  background: color-mix(in srgb, #ff9800 8%, var(--glass-surface)) !important;
+  box-shadow: 0 4px 12px rgba(255, 152, 0, 0.2), var(--glass-highlight) !important;
+}
+
+/* --- Bottleneck Child Project and Task Card Highlights --- */
+.graph-task-card.bottleneck-critical,
+.graph-child-project-section.bottleneck-critical > .graph-child-project-wrap {
+  border-left: 3px solid var(--coral) !important;
+  background: linear-gradient(90deg, 
+    color-mix(in srgb, var(--coral) 12%, var(--surface)) calc(12px + var(--depth, 0) * 12px),
+    color-mix(in srgb, var(--coral) 12%, var(--surface))
+  ) !important;
+  box-shadow: inset 0 0 8px rgba(235, 87, 87, 0.08) !important;
+}
+
+.graph-task-card.bottleneck-warning,
+.graph-child-project-section.bottleneck-warning > .graph-child-project-wrap {
+  border-left: 3px solid #ff9800 !important;
+  background: linear-gradient(90deg, 
+    color-mix(in srgb, #ff9800 10%, var(--surface)) calc(12px + var(--depth, 0) * 12px),
+    color-mix(in srgb, #ff9800 10%, var(--surface))
+  ) !important;
+  box-shadow: inset 0 0 8px rgba(255, 152, 0, 0.06) !important;
+}
+
+.graph-task-card.bottleneck-critical:hover,
+.graph-child-project-section.bottleneck-critical > .graph-child-project-wrap:hover {
+  background: linear-gradient(90deg, 
+    color-mix(in srgb, var(--coral) 20%, var(--panel-soft)) calc(12px + var(--depth, 0) * 12px),
+    color-mix(in srgb, var(--coral) 20%, var(--panel-soft))
+  ) !important;
+}
+
+.graph-task-card.bottleneck-warning:hover,
+.graph-child-project-section.bottleneck-warning > .graph-child-project-wrap:hover {
+  background: linear-gradient(90deg, 
+    color-mix(in srgb, #ff9800 16%, var(--panel-soft)) calc(12px + var(--depth, 0) * 12px),
+    color-mix(in srgb, #ff9800 16%, var(--panel-soft))
+  ) !important;
+}
+
+/* 최상위 노드 섀시에 대한 병목 하이라이트 스타일 */
+.graph-node.bottleneck-critical {
+  border-color: var(--coral) !important;
+  box-shadow: 
+    0 0 0 3px color-mix(in srgb, var(--coral) 20%, transparent),
+    0 12px 32px rgba(235, 87, 87, 0.16),
+    var(--glass-highlight) !important;
+}
+
+.graph-node.bottleneck-warning {
+  border-color: #ff9800 !important;
+  box-shadow: 
+    0 0 0 3px color-mix(in srgb, #ff9800 18%, transparent),
+    0 12px 32px rgba(255, 152, 0, 0.12),
+    var(--glass-highlight) !important;
+}
+
+@keyframes bottleneck-flow {
+  to {
+    stroke-dashoffset: -200;
+  }
+}
+
+/* ==========================================================================
+   BOTTLEANECK ACTIONS AND POPOVER STYLE
+   ========================================================================== */
+
+/* 팝오버 레이어 글라스모피즘 스타일 */
+.bottleneck-popover {
+  position: absolute;
+  z-index: 9999;
+  background: var(--glass-surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  backdrop-filter: blur(16px);
+  box-shadow: 0 8px 32px var(--shadow-strong);
+  width: 250px;
+  padding: 12px;
+  color: var(--text);
+  font-family: inherit;
+  pointer-events: auto;
+  animation: popover-fade-in 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes popover-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.bottleneck-popover .popover-arrow {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: var(--glass-surface);
+  border-left: 1px solid var(--border);
+  border-top: 1px solid var(--border);
+  transform: rotate(45deg);
+  top: -6px;
+  left: calc(50% - 5px);
+}
+
+.bottleneck-popover.placed-below .popover-arrow {
+  top: auto;
+  bottom: -6px;
+  border-left: none;
+  border-top: none;
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.bottleneck-popover .popover-title {
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--coral);
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.bottleneck-popover .popover-name {
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bottleneck-popover .popover-desc {
+  font-size: 11px;
+  color: var(--muted);
+  margin-bottom: 10px;
+}
+
+.bottleneck-popover .popover-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.bottleneck-popover .popover-actions button {
+  width: 100%;
+  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--button-bg, var(--surface));
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.16s var(--ease), border-color 0.16s var(--ease);
+}
+
+.bottleneck-popover .popover-actions button:hover {
+  background: var(--button-hover, color-mix(in srgb, var(--text) 5%, var(--surface)));
+  border-color: var(--text);
+}
+
+.bottleneck-popover .popover-actions .popover-split-section {
+  display: flex;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.bottleneck-popover .popover-actions .popover-split-section input {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 8px;
+  font-size: 11px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--input-bg, var(--surface));
+  color: var(--text);
+  outline: none;
+}
+
+.bottleneck-popover .popover-actions .popover-split-section button {
+  width: auto;
+  flex-shrink: 0;
+  background: var(--accent, #0076ff);
+  color: #fff;
+  border-color: transparent;
+}
+
+.bottleneck-popover .popover-actions .popover-split-section button:hover {
+  background: color-mix(in srgb, var(--accent) 80%, #000);
+  border-color: transparent;
+}
+
+/* 원인 노드 추적 시 깜빡임(Pulse) 효과 */
+@keyframes focus-node-flash {
+  0%, 100% {
+    box-shadow: 0 0 0 0px var(--coral), 0 8px 32px var(--shadow-strong);
+    border-color: var(--border);
+  }
+  50% {
+    box-shadow: 0 0 0 6px var(--coral), 0 0 20px var(--coral);
+    border-color: var(--coral);
+    transform: scale(1.05);
+  }
+}
+
+.focus-pulse {
+  animation: focus-node-flash 0.8s ease-in-out 3 !important;
+  z-index: 10000 !important;
+}
+
+/* 상세 패널 내 병목 진단 카드 스타일링 */
+.bottleneck-alert-card {
+  margin: 18px 20px;
+  padding: 14px;
+  border: 1px solid color-mix(in srgb, var(--coral) 24%, var(--line));
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--coral) 10%, var(--surface)) 0%, var(--panel-raised) 58%),
+    var(--surface);
+  box-shadow: var(--shadow-sm);
+  color: var(--text);
+  text-align: left;
+}
+
+.bottleneck-alert-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.bottleneck-alert-header span {
+  display: block;
+  color: var(--coral);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.bottleneck-alert-header strong {
+  display: block;
+  margin-top: 3px;
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.25;
+}
+
+.bottleneck-alert-header em {
+  min-width: 34px;
+  border: 1px solid color-mix(in srgb, var(--coral) 32%, var(--line));
+  border-radius: 999px;
+  padding: 4px 8px;
+  background: var(--surface);
+  color: var(--coral);
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 900;
+  text-align: center;
+}
+
+.bottleneck-alert-list {
+  display: grid;
+  gap: 8px;
+}
+
+.bottleneck-alert-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  border: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
+  border-radius: 8px;
+  padding: 10px;
+  background: color-mix(in srgb, var(--surface) 86%, white);
+}
+
+.bottleneck-alert-item.critical {
+  border-color: color-mix(in srgb, var(--coral) 36%, var(--line));
+}
+
+.bottleneck-item-copy {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.bottleneck-level {
+  flex: 0 0 auto;
+  border-radius: 999px;
+  padding: 3px 7px;
+  background: color-mix(in srgb, var(--coral) 12%, var(--surface));
+  color: var(--coral);
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.bottleneck-item-copy p {
+  min-width: 0;
+  margin: 0;
+}
+
+.bottleneck-item-copy strong,
+.bottleneck-item-copy span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bottleneck-item-copy strong {
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1.25;
+}
+
+.bottleneck-item-copy span {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 10.5px;
+  font-weight: 800;
+}
+
+.bottleneck-item-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.bottleneck-action-btn {
+  min-height: 28px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0 10px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 900;
+  cursor: pointer;
+  transition: transform 0.16s var(--ease), border-color 0.16s var(--ease), background 0.16s var(--ease), color 0.16s var(--ease);
+}
+
+.bottleneck-action-btn.trace {
+  border-color: color-mix(in srgb, var(--text) 18%, var(--line));
+}
+
+.bottleneck-action-btn.add {
+  background: var(--text);
+  border-color: var(--text);
+  color: var(--surface);
+}
+
+.bottleneck-action-btn.pin {
+  color: var(--coral);
+  border-color: color-mix(in srgb, var(--coral) 34%, var(--line));
+}
+
+.bottleneck-action-btn:hover,
+.bottleneck-action-btn:focus-visible {
+  outline: 0;
+  transform: translateY(-1px);
+  border-color: var(--text);
+  background: color-mix(in srgb, var(--text) 5%, var(--surface));
+}
+
+.bottleneck-action-btn.add:hover,
+.bottleneck-action-btn.add:focus-visible {
+  background: color-mix(in srgb, var(--text) 88%, var(--coral));
+  color: var(--surface);
+}
+
+@media (max-width: 720px) {
+  .bottleneck-alert-item {
+    grid-template-columns: 1fr;
+  }
+
+  .bottleneck-item-actions {
+    justify-content: flex-start;
+  }
+}

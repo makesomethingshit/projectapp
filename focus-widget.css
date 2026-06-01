@@ -1,0 +1,288 @@
+:root {
+  --surface: #f5f4ed; /* var(--paper) */
+  --panel: #fbfaf3;   /* var(--paper-raised) */
+  --panel-soft: #ede9de;
+  --line: #ddd6c7;
+  --glass: rgba(251, 250, 243, 0.78);
+  --glass-strong: rgba(245, 244, 237, 0.9);
+  --glass-line: rgba(27, 54, 93, 0.14);
+  --glass-highlight: inset 0 1px 0 rgba(255, 253, 246, 0.82), inset 0 -1px 0 rgba(88, 73, 48, 0.045);
+  --text: #102547; /* var(--ink-blue) */
+  --muted: #6f6a5f;
+  --quiet: #9a907e;
+  --alert: #b94134; /* var(--coral) */
+  --shadow: 0 12px 36px rgba(73, 61, 39, 0.08);
+  --grid-line: rgba(27, 54, 93, 0.03);
+  --grid-line-strong: rgba(27, 54, 93, 0.035);
+  --accent-btn: #102547;
+  --accent-btn-text: #f5f4ed;
+  --meter-bg: #e5dec9;
+  --meter-fill: #102547;
+  --glass-sheen: linear-gradient(124deg, rgba(255, 255, 255, 0.34), transparent 44%, rgba(255, 255, 255, 0.1));
+  font-family: "Aptos", "Noto Serif KR", Georgia, serif;
+}
+
+:root[data-theme="dark"] {
+  --surface: #202020;
+  --panel: #2a2a2a;
+  --panel-soft: #252525;
+  --line: #3d3d3d;
+  --glass: rgba(42, 42, 42, 0.78);
+  --glass-strong: rgba(24, 24, 24, 0.9);
+  --glass-line: rgba(255, 255, 255, 0.13);
+  --glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.11), inset 0 -1px 0 rgba(0, 0, 0, 0.32);
+  --text: #f1f1f1;
+  --muted: #b8b8b8;
+  --quiet: #818181;
+  --alert: #ff7568;
+  --shadow: 0 18px 45px rgba(0, 0, 0, 0.36);
+  --grid-line: rgba(255, 255, 255, 0.03);
+  --grid-line-strong: rgba(255, 255, 255, 0.035);
+  --accent-btn: #f1f1f1;
+  --accent-btn-text: #151515;
+  --meter-bg: #404040;
+  --meter-fill: #f1f1f1;
+  --glass-sheen: linear-gradient(124deg, rgba(255, 255, 255, 0.12), transparent 42%, rgba(255, 255, 255, 0.045));
+  font-family: "Segoe UI", "Noto Sans KR", Inter, ui-sans-serif, system-ui, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--surface);
+  color: var(--text);
+}
+
+body::before {
+  content: none;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+.focus-shell {
+  min-height: 100vh;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  gap: 12px;
+  padding: 14px;
+  background:
+    linear-gradient(var(--grid-line-strong) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px),
+    var(--surface);
+  background-size: 26px 26px;
+}
+
+.focus-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.focus-head span,
+.focus-hero span,
+.focus-footer span {
+  color: var(--quiet);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0;
+}
+
+.focus-head h1 {
+  margin: 2px 0 0;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.focus-head button {
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--text);
+  font-size: 17px;
+}
+
+.focus-hero {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--glass-line);
+  border-radius: 8px;
+  display: grid;
+  gap: 8px;
+  padding: 15px;
+  background: var(--glass-strong);
+  box-shadow: var(--shadow), var(--glass-highlight);
+  backdrop-filter: blur(16px) saturate(1.2);
+}
+
+.focus-hero::before,
+.focus-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--glass-sheen);
+  pointer-events: none;
+}
+
+.focus-hero strong {
+  color: var(--text);
+  font-size: 22px;
+  line-height: 1.18;
+  word-break: keep-all;
+}
+
+.focus-hero small {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.focus-list {
+  min-height: 0;
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  overflow: auto;
+  padding-right: 2px;
+}
+
+.focus-card {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--glass-line);
+  border-radius: 8px;
+  display: grid;
+  gap: 8px;
+  padding: 11px;
+  background: var(--glass);
+  box-shadow: var(--glass-highlight);
+  backdrop-filter: blur(14px) saturate(1.16);
+}
+
+.focus-card.is-primary {
+  border-color: color-mix(in srgb, var(--text) 45%, transparent);
+}
+
+.focus-card header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.focus-card strong {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 13px;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.focus-card small {
+  flex: 0 0 auto;
+  color: var(--quiet);
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.focus-project {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.focus-meter {
+  height: 4px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--meter-bg);
+}
+
+.focus-meter i {
+  width: var(--value);
+  height: 100%;
+  display: block;
+  border-radius: inherit;
+  background: var(--meter-fill);
+}
+
+.focus-control {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+}
+
+.focus-control span {
+  color: var(--quiet);
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.focus-control input {
+  width: 100%;
+  accent-color: var(--meter-fill);
+}
+
+.focus-empty {
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+  padding: 18px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.focus-footer {
+  border-top: 1px solid var(--line);
+  display: grid;
+  gap: 10px;
+  padding-top: 12px;
+}
+
+.focus-footer label {
+  display: grid;
+  gap: 6px;
+}
+
+.focus-footer input {
+  width: 100%;
+  accent-color: var(--meter-fill);
+}
+
+.focus-footer button {
+  min-height: 34px;
+  border: 1px solid var(--accent-btn);
+  border-radius: 8px;
+  background: var(--accent-btn);
+  color: var(--accent-btn-text);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+@media (max-width: 280px) {
+  .focus-shell {
+    padding: 10px;
+  }
+
+  .focus-hero strong {
+    font-size: 18px;
+  }
+}

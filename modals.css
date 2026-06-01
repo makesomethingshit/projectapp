@@ -1,0 +1,439 @@
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  align-items: center;
+  justify-items: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.16);
+}
+
+.modal-backdrop[hidden] {
+  display: none;
+}
+
+.note-modal {
+  width: min(620px, 100%);
+  display: grid;
+  gap: 14px;
+}
+
+.complete-modal {
+  width: min(520px, 100%);
+}
+
+.delete-modal {
+  width: min(480px, 100%);
+}
+
+.preferences-modal {
+  width: min(520px, 100%);
+}
+
+.deadline-modal {
+  width: min(540px, 100%);
+}
+
+.project-modal {
+  width: min(560px, 100%);
+}
+
+.modal-section {
+  display: grid;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+  background: color-mix(in srgb, var(--surface) 88%, var(--page));
+}
+
+.modal-section-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 18px;
+}
+
+.modal-section-title span {
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.modal-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--line);
+}
+
+.modal-head span,
+.field-label {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.modal-head h2 {
+  margin: 5px 0 0;
+  font-size: 19px;
+  line-height: 1.2;
+}
+
+.deadline-modal textarea {
+  min-height: 88px;
+  resize: vertical;
+  padding: 11px 12px;
+  line-height: 1.5;
+}
+
+.complete-modal textarea {
+  min-height: 104px;
+  resize: vertical;
+  padding: 11px 12px;
+  line-height: 1.5;
+}
+
+.project-modal textarea {
+  min-height: 96px;
+  resize: vertical;
+  padding: 11px 12px;
+  line-height: 1.5;
+}
+
+.note-meta-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(128px, 0.8fr) minmax(138px, 0.85fr);
+  gap: 8px;
+  border: 1px solid color-mix(in srgb, var(--line) 82%, transparent);
+  border-radius: 8px;
+  padding: 9px;
+  background: color-mix(in srgb, var(--surface) 78%, var(--page));
+}
+
+.note-field {
+  min-width: 0;
+  display: grid;
+  gap: 5px;
+}
+
+.note-field span,
+.note-editor span,
+.note-progress-field span {
+  color: var(--quiet);
+  font-size: 10px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.note-field input,
+.note-field select {
+  width: 100%;
+  min-width: 0;
+  min-height: 32px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 0 9px;
+  background: color-mix(in srgb, var(--surface) 92%, var(--page));
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.note-field input:focus-visible,
+.note-field select:focus-visible {
+  border-color: var(--line-strong);
+}
+
+.note-progress-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.note-progress-field {
+  min-width: 0;
+  display: grid;
+  gap: 8px;
+  border: 1px solid color-mix(in srgb, var(--line) 76%, transparent);
+  border-radius: 8px;
+  padding: 10px;
+  background: var(--panel-raised);
+}
+
+.note-progress-field[hidden] {
+  display: none;
+}
+
+.note-progress-field > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.note-progress-field strong {
+  color: var(--text);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.note-progress-field input {
+  width: 100%;
+  min-height: 18px;
+  padding: 0;
+  accent-color: var(--text);
+}
+
+.note-editor {
+  display: grid;
+  gap: 7px;
+}
+
+.note-editor textarea {
+  width: 100%;
+  min-height: 220px;
+  max-height: min(46vh, 420px);
+  resize: vertical;
+  border: 1px solid color-mix(in srgb, var(--line) 92%, transparent);
+  border-radius: 8px;
+  padding: 16px 17px;
+  background:
+    linear-gradient(color-mix(in srgb, var(--line) 30%, transparent) 1px, transparent 1px),
+    color-mix(in srgb, var(--surface) 94%, var(--page));
+  background-size: 100% 28px, auto;
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.note-editor textarea::placeholder {
+  color: color-mix(in srgb, var(--quiet) 76%, transparent);
+}
+
+.note-editor textarea:focus-visible {
+  border-color: var(--line-strong);
+  background:
+    linear-gradient(color-mix(in srgb, var(--line) 34%, transparent) 1px, transparent 1px),
+    var(--surface);
+  background-size: 100% 28px, auto;
+}
+
+.modal-actions .subtle-danger {
+  margin-right: auto;
+  color: var(--coral);
+}
+
+.setting-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: center;
+}
+
+.setting-row strong {
+  display: block;
+  color: var(--text);
+  font-size: 14px;
+}
+
+.setting-row small {
+  display: block;
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.setting-row input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--text);
+}
+
+.data-status {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.clear-deadline {
+  display: grid;
+  grid-template-columns: 16px 1fr;
+  gap: 9px;
+  align-items: center;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.clear-deadline input {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--text);
+}
+
+.delete-copy {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.danger-actions button[type="submit"] {
+  border-color: var(--coral);
+  background: var(--coral);
+}
+
+.danger-actions button[type="submit"]:disabled {
+  border-color: var(--line);
+  background: #f2f2f2;
+  color: var(--quiet);
+  cursor: not-allowed;
+}
+
+.verification-list {
+  display: grid;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+  background: var(--panel-raised);
+}
+
+.verification-list label {
+  display: grid;
+  grid-template-columns: 18px 1fr;
+  gap: 9px;
+  align-items: start;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.verification-list input {
+  width: 15px;
+  height: 15px;
+  margin: 1px 0 0;
+  accent-color: var(--text);
+}
+
+.modal-grid {
+  display: grid;
+  grid-template-columns: 1fr 140px;
+  gap: 10px;
+}
+
+.external-link-editor {
+  display: grid;
+  gap: 9px;
+}
+
+.external-link-head,
+.external-link-row {
+  display: grid;
+  gap: 8px;
+}
+
+.external-link-head {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+}
+
+.external-link-head button {
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+#externalLinksList {
+  display: grid;
+  gap: 8px;
+}
+
+.external-link-row {
+  grid-template-columns: minmax(0, 1fr) 92px 92px 24px;
+  align-items: center;
+}
+
+.external-link-row input[type="number"] {
+  min-width: 0;
+  padding-inline: 10px;
+  text-align: right;
+}
+
+.external-link-row button {
+  width: 24px;
+  height: 36px;
+  border: 0;
+  background: transparent;
+  color: var(--quiet);
+  font-size: 18px;
+}
+
+.external-link-row button:hover {
+  color: var(--coral);
+}
+
+.modal-grid label {
+  display: grid;
+  gap: 7px;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 4px;
+}
+
+.modal-actions button {
+  min-height: 36px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  padding: 0 14px;
+  background: var(--panel-raised);
+  color: var(--text);
+  font-weight: 700;
+}
+
+.modal-actions button[type="submit"] {
+  border-color: var(--text);
+  background: var(--text);
+  color: var(--surface);
+}
+
+.archive-select-item-btn {
+  background: var(--panel-raised);
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+
+.archive-select-item-btn:hover {
+  background: color-mix(in srgb, var(--accent) 8%, var(--panel-raised)) !important;
+  border-color: var(--accent) !important;
+}
+
+@media (max-width: 640px) {
+  .note-modal {
+    width: min(100%, 520px);
+    max-height: calc(100vh - 32px);
+    overflow: auto;
+  }
+
+  .note-meta-panel,
+  .note-progress-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .note-editor textarea {
+    min-height: 180px;
+    max-height: 38vh;
+  }
+}

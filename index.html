@@ -1,0 +1,437 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>작업실</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="app-shell" aria-label="작업실 프로젝트 위젯">
+      <header class="topbar">
+        <div class="brand">
+          <h1>작업실</h1>
+          <span aria-hidden="true"></span>
+          <p>프로젝트 완성도 관리</p>
+        </div>
+        <nav class="app-menu" aria-label="앱 메뉴">
+          <button type="button" data-menu-action="file">파일</button>
+          <button type="button" data-menu-action="focus-widget">집중 위젯</button>
+          <button type="button" data-menu-action="preferences">환경설정</button>
+        </nav>
+        <nav class="view-tab-nav" id="viewTabNav" aria-label="뷰 전환">
+          <button type="button" id="viewTabDetail" data-main-view="detail">상세</button>
+          <button type="button" id="viewTabGraph" data-main-view="graph">구조 지도</button>
+          <button type="button" id="viewTabArchive" data-main-view="archive">아카이브</button>
+        </nav>
+        <div class="file-menu" id="fileMenu" hidden>
+          <button type="button" id="exportDataButton">내보내기</button>
+          <button type="button" id="importDataButton">가져오기</button>
+          <p id="dataStatus">프로젝트와 할 일을 JSON 파일로 백업할 수 있습니다.</p>
+        </div>
+        <div class="topbar-search" id="searchPanel" hidden>
+          <input id="searchInput" type="search" placeholder="프로젝트, 할 일, 아카이브 검색" autocomplete="off" />
+          <button type="button" id="clearSearch" aria-label="검색 비우기">×</button>
+        </div>
+        <div class="window-actions" aria-label="앱 도구">
+          <button class="pin-toggle active" id="pinToggle" type="button" aria-pressed="true">상단 고정</button>
+          <button class="icon-button" aria-label="검색" data-action="search">
+            <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"></circle><path d="m16 16 4 4"></path></svg>
+          </button>
+        </div>
+      </header>
+
+      <div class="archive-full-view" id="archiveFullView" hidden>
+        <div class="archive-full-content" id="archiveFullContent"></div>
+      </div>
+      <section class="workspace" id="workspace">
+        <button class="panel-collapse-handle" id="panelCollapseHandle" type="button" aria-label="왼쪽 패널 접기" aria-pressed="false">
+          <span></span>
+        </button>
+        <aside class="panel project-panel" aria-label="프로젝트 전체 관리">
+          <div class="section-heading">
+            <h2>프로젝트</h2>
+            <div class="project-heading-actions">
+              <button class="text-icon" id="addProject" aria-label="새 프로젝트 추가">+</button>
+            </div>
+          </div>
+          <div class="tabs" data-tabs="projects">
+            <button class="active" data-filter="all">전체</button>
+            <button data-filter="진행 중">진행 중</button>
+            <button data-filter="with-deadline">마감 있음</button>
+            <button data-filter="no-deadline">마감 없음</button>
+          </div>
+          <div class="project-list" id="projectList"></div>
+          <button class="bottom-command" id="newProjectButton">
+            <span>+</span>
+            새 프로젝트
+          </button>
+        </aside>
+
+        <section class="panel detail-panel" aria-label="선택한 프로젝트 상세">
+          <div id="projectDetail"></div>
+        </section>
+      </section>
+
+      <div class="modal-backdrop" id="taskModal" hidden>
+        <form class="task-modal" id="taskForm" aria-label="새 할 일 추가">
+          <div class="modal-head">
+            <div>
+              <span>새 할 일</span>
+              <h2 id="modalProjectName">프로젝트</h2>
+            </div>
+            <button type="button" class="icon-button" id="closeTaskModal" aria-label="닫기">
+              <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"></path></svg>
+            </button>
+          </div>
+          <label class="field-label" for="taskInput">할 일</label>
+          <input id="taskInput" type="text" placeholder="해야 할 일을 입력..." autocomplete="off" />
+          <label class="field-label" for="taskContributionModeInput">프로젝트에 반영</label>
+          <select id="taskContributionModeInput">
+            <option value="both">완성도와 진행도 둘 다</option>
+            <option value="completion">완성도만</option>
+            <option value="advance">진행도만</option>
+          </select>
+          <label class="field-label" for="taskProjectInput">소속 프로젝트</label>
+          <select id="taskProjectInput"></select>
+          <div class="task-completion-field" data-task-field="completion">
+            <div>
+              <span class="field-label">초기 완성도</span>
+              <strong id="taskCompletionValue">0%</strong>
+            </div>
+            <input id="taskCompletionInput" type="range" min="0" max="100" step="5" value="0" />
+          </div>
+          <div class="task-completion-field" data-task-field="advance">
+            <div>
+              <span class="field-label">초기 진행도</span>
+              <strong id="taskAdvanceValue">0%</strong>
+            </div>
+            <input id="taskAdvanceInput" type="range" min="0" max="100" step="5" value="0" />
+          </div>
+          <div class="modal-actions">
+            <button type="button" id="cancelTaskModal">취소</button>
+            <button type="submit">추가</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="modal-backdrop" id="noteModal" hidden>
+        <form class="note-modal" id="noteForm" aria-label="할 일 메모">
+          <div class="modal-head">
+            <div>
+              <span>할 일 노트</span>
+              <h2 id="noteTaskName">할 일</h2>
+            </div>
+            <button type="button" class="icon-button" id="closeNoteModal" aria-label="닫기">
+              <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"></path></svg>
+            </button>
+          </div>
+
+          <section class="note-meta-panel" aria-label="할 일 속성">
+            <label class="note-field wide" for="noteTaskNameInput">
+              <span>이름</span>
+              <input id="noteTaskNameInput" type="text" autocomplete="off" />
+            </label>
+            <label class="note-field" for="noteTaskProjectInput">
+              <span>소속</span>
+              <select id="noteTaskProjectInput"></select>
+            </label>
+            <label class="note-field" for="noteTaskContributionModeInput">
+              <span>반영</span>
+              <select id="noteTaskContributionModeInput">
+                <option value="both">완성도와 진행도</option>
+                <option value="completion">완성도만</option>
+                <option value="advance">진행도만</option>
+              </select>
+            </label>
+          </section>
+
+          <section class="note-progress-grid" aria-label="할 일 지표">
+            <div class="note-progress-field" data-note-field="completion">
+              <div>
+                <span>완성도</span>
+                <strong id="noteTaskCompletionValue">0%</strong>
+              </div>
+              <input id="noteTaskCompletionInput" type="range" min="0" max="100" step="5" value="0" />
+            </div>
+            <div class="note-progress-field" data-note-field="advance">
+              <div>
+                <span>진행도</span>
+                <strong id="noteTaskAdvanceValue">0%</strong>
+              </div>
+              <input id="noteTaskAdvanceInput" type="range" min="0" max="100" step="5" value="0" />
+            </div>
+          </section>
+
+          <label class="note-editor" for="noteInput">
+            <span>메모</span>
+            <textarea id="noteInput" placeholder="필요한 생각, 링크, 참고사항을 적어두기..."></textarea>
+          </label>
+          <div class="modal-actions">
+            <button type="button" id="clearNoteModal" class="subtle-danger">메모 비우기</button>
+            <button type="button" id="cancelNoteModal">닫기</button>
+            <button type="submit">저장</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="modal-backdrop" id="deleteProjectModal" hidden>
+        <form class="delete-modal" id="deleteProjectForm" aria-label="프로젝트 삭제 확인">
+          <div class="modal-head">
+            <div>
+              <span>프로젝트 삭제</span>
+              <h2 id="deleteProjectName">프로젝트</h2>
+            </div>
+            <button type="button" class="icon-button" id="closeDeleteProjectModal" aria-label="닫기">
+              <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"></path></svg>
+            </button>
+          </div>
+          <p class="delete-copy">이 프로젝트 안의 하위 프로젝트와 연결된 할 일이 함께 삭제됩니다. 되돌릴 수 없습니다.</p>
+          <label class="field-label" for="deleteProjectInput">프로젝트 이름을 입력해서 확인</label>
+          <input id="deleteProjectInput" type="text" autocomplete="off" />
+          <div class="modal-actions danger-actions">
+            <button type="button" id="cancelDeleteProjectModal">취소</button>
+            <button type="submit" id="confirmDeleteProject" disabled>삭제</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="modal-backdrop" id="deleteTaskModal" hidden>
+        <form class="delete-modal" id="deleteTaskForm" aria-label="할 일 삭제 확인">
+          <div class="modal-head">
+            <div>
+              <span>할 일 삭제</span>
+              <h2 id="deleteTaskName">할 일</h2>
+            </div>
+            <button type="button" class="icon-button" id="closeDeleteTaskModal" aria-label="닫기">
+              <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"></path></svg>
+            </button>
+          </div>
+          <p class="delete-copy">이 할 일과 메모가 함께 삭제됩니다. 되돌릴 수 없습니다.</p>
+          <div class="modal-actions danger-actions">
+            <button type="button" id="cancelDeleteTaskModal">취소</button>
+            <button type="submit">삭제</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="modal-backdrop" id="projectDeadlineModal" hidden>
+        <form class="deadline-modal" id="projectDeadlineForm" aria-label="프로젝트 수정">
+          <div class="modal-head">
+            <div>
+              <span>프로젝트 수정</span>
+              <h2 id="deadlineProjectName">프로젝트</h2>
+            </div>
+            <button type="button" class="icon-button" id="closeProjectDeadlineModal" aria-label="닫기">
+              <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"></path></svg>
+            </button>
+          </div>
+          <section class="modal-section">
+            <div class="modal-section-title">
+              <span>기본 정보</span>
+            </div>
+            <label class="field-label" for="editProjectNameInput">프로젝트 이름</label>
+            <input id="editProjectNameInput" type="text" autocomplete="off" />
+            <label class="field-label" for="editProjectNoteInput">메모</label>
+            <textarea id="editProjectNoteInput" placeholder="프로젝트 목적이나 현재 상태를 짧게 적기..."></textarea>
+          </section>
+          <section class="modal-section">
+            <div class="modal-section-title">
+              <span>위계와 반영</span>
+            </div>
+            <label class="field-label" for="editProjectParentInput">상위 프로젝트</label>
+            <select id="editProjectParentInput">
+              <option value="">없음 - 최상위 프로젝트</option>
+            </select>
+            <label class="field-label" for="editContributionModeInput">상위 프로젝트에 반영</label>
+            <select id="editContributionModeInput">
+              <option value="both">완성도와 진행도 둘 다</option>
+              <option value="completion">완성도만</option>
+              <option value="advance">진행도만</option>
+            </select>
+            <div class="external-link-editor">
+              <div class="external-link-head">
+                <span class="field-label">다른 프로젝트에 반영</span>
+                <button type="button" id="addExternalLink">+ 추가</button>
+              </div>
+              <div id="externalLinksList"></div>
+            </div>
+          </section>
+          <section class="modal-section">
+            <div class="modal-section-title">
+              <span>데드라인</span>
+            </div>
+            <input id="projectDeadlineInput" type="date" />
+            <label class="clear-deadline">
+              <input type="checkbox" id="clearProjectDeadline" />
+              <span>데드라인 없음</span>
+            </label>
+          </section>
+          <div class="modal-actions">
+            <button type="button" id="cancelProjectDeadlineModal">취소</button>
+            <button type="submit">저장</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="modal-backdrop" id="preferencesModal" hidden>
+        <form class="preferences-modal" id="preferencesForm" aria-label="환경설정">
+          <div class="modal-head">
+            <div>
+              <span>작업실</span>
+              <h2>환경설정</h2>
+            </div>
+            <button type="button" class="icon-button" id="closePreferencesModal" aria-label="닫기">
+              <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"></path></svg>
+            </button>
+          </div>
+          <section class="modal-section">
+            <div class="modal-section-title">
+              <span>화면</span>
+            </div>
+            <label class="setting-row">
+              <span>
+                <strong>디지털 모드</strong>
+                <small>끄면 미색 종이와 잉크블루의 아날로그 모드로 전환합니다.</small>
+              </span>
+              <input type="checkbox" id="darkModeInput" />
+            </label>
+          </section>
+          <section class="modal-section">
+            <div class="modal-section-title">
+              <span>창</span>
+            </div>
+            <label class="setting-row">
+              <span>
+                <strong>항상 위에 고정</strong>
+                <small>메모앱처럼 다른 창 위에 유지합니다.</small>
+              </span>
+              <input type="checkbox" id="preferencesPinInput" />
+            </label>
+          </section>
+          <section class="modal-section">
+            <div class="modal-section-title">
+              <span>단축키 설정</span>
+            </div>
+            <label class="setting-row">
+              <span>
+                <strong>구조 지도 토글</strong>
+                <small>상세 화면과 구조 지도를 전환합니다.</small>
+              </span>
+              <input type="text" id="shortcutToggleGraph" class="shortcut-input" readonly placeholder="키를 누르세요" style="width: 100px; text-align: center; padding: 6px; border: 1px solid var(--border); border-radius: 6px; background: var(--input-bg); color: var(--text); cursor: pointer;" />
+            </label>
+            <label class="setting-row">
+              <span>
+                <strong>집중 위젯 열기</strong>
+                <small>작은 집중 타이머/할 일 위젯을 엽니다.</small>
+              </span>
+              <input type="text" id="shortcutOpenFocusWidget" class="shortcut-input" readonly placeholder="키를 누르세요" style="width: 100px; text-align: center; padding: 6px; border: 1px solid var(--border); border-radius: 6px; background: var(--input-bg); color: var(--text); cursor: pointer;" />
+            </label>
+            <label class="setting-row">
+              <span>
+                <strong>검색창 토글</strong>
+                <small>검색 필드를 열고 닫습니다.</small>
+              </span>
+              <input type="text" id="shortcutToggleSearch" class="shortcut-input" readonly placeholder="키를 누르세요" style="width: 100px; text-align: center; padding: 6px; border: 1px solid var(--border); border-radius: 6px; background: var(--input-bg); color: var(--text); cursor: pointer;" />
+            </label>
+            <label class="setting-row">
+              <span>
+                <strong>아날로그/디지털 모드 전환</strong>
+                <small>두 화면 모드를 빠르게 오갑니다.</small>
+              </span>
+              <input type="text" id="shortcutToggleTheme" class="shortcut-input" readonly placeholder="키를 누르세요" style="width: 100px; text-align: center; padding: 6px; border: 1px solid var(--border); border-radius: 6px; background: var(--input-bg); color: var(--text); cursor: pointer;" />
+            </label>
+          </section>
+          <div class="modal-actions">
+            <button type="button" id="cancelPreferencesModal">닫기</button>
+            <button type="submit">저장</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="modal-backdrop" id="projectModal" hidden>
+        <form class="project-modal" id="projectForm" aria-label="새 프로젝트 추가">
+          <div class="modal-head">
+            <div>
+              <span>새 프로젝트</span>
+              <h2>프로젝트 만들기</h2>
+            </div>
+            <button type="button" class="icon-button" id="closeProjectModal" aria-label="닫기">
+              <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"></path></svg>
+            </button>
+          </div>
+          <label class="field-label" for="projectNameInput">프로젝트 이름</label>
+          <input id="projectNameInput" type="text" placeholder="예: 전시 포스터 작업" autocomplete="off" required />
+          <label class="field-label" for="projectParentInput">상위 프로젝트</label>
+          <select id="projectParentInput">
+            <option value="">없음 - 최상위 프로젝트</option>
+          </select>
+          <div class="modal-grid">
+            <label>
+              <span class="field-label">상태</span>
+              <select id="projectStatusInput">
+                <option value="진행 중" selected>진행 중</option>
+                <option value="계획 중">계획 중</option>
+                <option value="보류">보류</option>
+              </select>
+            </label>
+            <label>
+              <span class="field-label">데드라인</span>
+              <input id="newProjectDeadlineInput" type="date" />
+            </label>
+          </div>
+          <label class="clear-deadline">
+            <input type="checkbox" id="newProjectNoDeadline" />
+            <span>데드라인 없음</span>
+          </label>
+          <label class="field-label" for="projectNoteInput">메모</label>
+          <textarea id="projectNoteInput" placeholder="프로젝트 목적이나 현재 상태를 짧게 적기..."></textarea>
+          <div class="modal-actions">
+            <button type="button" id="cancelProjectModal">취소</button>
+            <button type="submit">추가</button>
+          </div>
+        </form>
+      </div>
+
+      <!-- 아카이브 리소스 선택 모달 -->
+      <div class="modal-backdrop" id="archiveSelectModal" hidden>
+        <form class="note-modal" id="archiveSelectForm" aria-label="아카이브 리소스 선택" style="max-width: 480px;">
+          <div class="modal-head">
+            <div>
+              <span>아카이브 노드 추가</span>
+              <h2>연결할 리소스 선택</h2>
+            </div>
+            <button type="button" class="icon-button" id="closeArchiveSelectModal" aria-label="닫기">
+              <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"></path></svg>
+            </button>
+          </div>
+          <div style="margin-top: 15px; margin-bottom: 15px; max-height: 320px; overflow-y: auto; border: 1px solid var(--line); border-radius: 8px; padding: 10px; background: var(--panel-raised);">
+            <div id="archiveSelectModalList" style="display: grid; gap: 8px;">
+              <!-- Dynamic list of project resources -->
+            </div>
+          </div>
+          <div class="modal-actions">
+            <button type="button" id="cancelArchiveSelectModal">취소</button>
+          </div>
+        </form>
+      </div>
+
+      <!-- 반영 비율 미니 조절 팝업 -->
+      <div class="weight-slider-popup" id="weightSliderPopup" hidden style="position: absolute; z-index: 100; pointer-events: auto;">
+        <div class="weight-popup-content" style="padding: 10px 12px; background: var(--glass-surface); border: 1px solid var(--border); border-radius: 12px; backdrop-filter: blur(16px); box-shadow: 0 8px 32px var(--shadow-strong); width: 220px; color: var(--text);">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <span style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">반영 비율 설정</span>
+            <button type="button" id="closeWeightPopup" style="background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 14px; line-height: 1; padding: 0;">×</button>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <input type="range" id="weightSliderInput" min="5" max="90" step="5" style="flex: 1; accent-color: var(--accent); cursor: pointer;" />
+            <span id="weightSliderValue" style="font-size: 13px; font-weight: 700; min-width: 32px; text-align: right;">30%</span>
+          </div>
+          <p style="font-size: 10px; color: var(--text-muted); margin-top: 6px; margin-bottom: 0; line-height: 1.3;">이 프로젝트가 상위 완성도와 진행도에 기여하는 비율입니다.</p>
+        </div>
+      </div>
+    </main>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>

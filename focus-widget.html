@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>집중 위젯</title>
+    <link rel="stylesheet" href="./focus-widget.css" />
+  </head>
+  <body>
+    <main class="focus-shell">
+      <header class="focus-head">
+        <div>
+          <span>NOW</span>
+          <h1>집중 위젯</h1>
+        </div>
+        <button type="button" id="refreshButton" aria-label="새로고침">↻</button>
+      </header>
+
+      <section class="focus-hero" id="focusHero">
+        <span>다음 집중</span>
+        <strong id="primaryTask">불러오는 중</strong>
+        <small id="primaryProject">작업실 데이터를 확인하고 있습니다.</small>
+      </section>
+
+      <section class="focus-list" id="focusList" aria-label="집중할 일 목록"></section>
+
+      <footer class="focus-footer">
+        <label>
+          <span>불투명도</span>
+          <input id="opacityInput" type="range" min="55" max="100" value="94" />
+        </label>
+        <button type="button" id="openMainButton">작업실 열기</button>
+      </footer>
+    </main>
+    <script src="./focus-widget.js"></script>
+  </body>
+</html>

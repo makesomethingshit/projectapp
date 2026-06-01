@@ -1,0 +1,656 @@
+:root {
+  --font-analog-latin: "Aptos";
+  --font-analog-korean: "Noto Serif KR";
+  --font-digital-latin: "Segoe UI";
+  --font-digital-korean: "Noto Sans KR";
+  --font-current-latin: var(--font-analog-latin);
+  --font-current-korean: var(--font-analog-korean);
+  --paper: #f5f4ed;
+  --paper-raised: #fbfaf3;
+  --ink-blue: #102547;
+  --ink-blue-soft: #e8edf0;
+  --warm-shadow: #d8d0bf;
+  --surface: var(--paper-raised);
+  --page: var(--paper);
+  --line: #ddd6c7;
+  --line-strong: #c7bda8;
+  --text: var(--ink-blue);
+  --muted: #6f6a5f;
+  --quiet: #9a907e;
+  --green: var(--ink-blue);
+  --green-soft: #ede9de;
+  --coral: #b94134;
+  --coral-soft: #f3e1dc;
+  --amber: #7a725f;
+  --amber-soft: #eee8d9;
+  --blue: var(--ink-blue);
+  --blue-soft: var(--ink-blue-soft);
+  --port-completion: var(--ink-blue);
+  --port-advance: var(--paper-raised);
+  --port-ring: var(--ink-blue);
+  --port-halo: rgba(251, 250, 243, 0.96);
+  --panel-soft: color-mix(in srgb, var(--surface) 92%, var(--page));
+  --panel-raised: color-mix(in srgb, var(--surface) 96%, var(--page));
+  --glass-surface: rgba(251, 250, 243, 0.48);
+  --glass-strong: rgba(251, 250, 243, 0.64);
+  --glass-line: rgba(27, 54, 93, 0.14);
+  --glass-highlight: inset 0 1px 0 rgba(255, 253, 246, 0.82), inset 0 -1px 0 rgba(88, 73, 48, 0.045);
+  --glass-glow: 0 1px 4px rgba(83, 69, 43, 0.04);
+  --glass-blur: blur(12px) saturate(1.12);
+  --glass-sheen: linear-gradient(124deg, rgba(255, 255, 255, 0.34), transparent 44%, rgba(255, 255, 255, 0.1));
+  --glass-grid-line: rgba(32, 32, 32, 0);
+  --focus-ring: 0 0 0 3px color-mix(in srgb, var(--text) 14%, transparent);
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --shadow: 0 24px 60px rgba(73, 61, 39, 0.08);
+  --accent: var(--ink-blue);
+  font-family: var(--font-current-latin), var(--font-current-korean), sans-serif;
+}
+
+:root[data-theme="dark"] {
+  --font-current-latin: var(--font-digital-latin);
+  --font-current-korean: var(--font-digital-korean);
+  --surface: #171717;
+  --page: #0f0f0f;
+  --line: #303030;
+  --line-strong: #454545;
+  --text: #e8e8e8;
+  --muted: #a8a8a8;
+  --quiet: #737373;
+  --green-soft: #202020;
+  --coral-soft: #211615;
+  --amber-soft: #202020;
+  --blue-soft: #202020;
+  --panel-soft: #1c1c1c;
+  --panel-raised: #202020;
+  --glass-surface: rgba(31, 31, 31, 0.78);
+  --glass-strong: rgba(34, 34, 34, 0.86);
+  --glass-line: rgba(255, 255, 255, 0.11);
+  --glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.08), inset 0 -1px 0 rgba(0, 0, 0, 0.22);
+  --glass-glow: 0 14px 34px rgba(0, 0, 0, 0.36);
+  --glass-blur: blur(12px) saturate(1.12);
+  --glass-sheen: linear-gradient(124deg, rgba(255, 255, 255, 0.12), transparent 42%, rgba(255, 255, 255, 0.045));
+  --glass-grid-line: rgba(255, 255, 255, 0.04);
+  --focus-ring: 0 0 0 3px rgba(255, 255, 255, 0.14);
+  --shadow: 0 24px 70px rgba(0, 0, 0, 0.45);
+  --accent: #e8e8e8;
+  --port-completion: #f0f0f0;
+  --port-advance: #171717;
+  --port-ring: #f0f0f0;
+  --port-halo: rgba(23, 23, 23, 0.92);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--line) 38%, transparent) 1px, transparent 1px),
+    linear-gradient(color-mix(in srgb, var(--line) 28%, transparent) 1px, transparent 1px),
+    var(--page);
+  background-size: 28px 28px;
+  color: var(--text);
+  font-family: var(--font-current-latin), var(--font-current-korean), sans-serif;
+}
+
+body::before {
+  content: none;
+}
+
+:root[data-theme="dark"] body {
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    var(--page);
+  background-size: 28px 28px;
+}
+
+:root[data-theme="dark"] body::before {
+  content: none;
+}
+
+:root[data-theme="dark"] .project-item.active,
+:root[data-theme="dark"] .detail-progress,
+:root[data-theme="dark"] .rollup-panel,
+:root[data-theme="dark"] .work-flow-summary,
+:root[data-theme="dark"] .work-flow-grid > div,
+:root[data-theme="dark"] .workflow-radar article,
+:root[data-theme="dark"] .review-panel > div,
+:root[data-theme="dark"] .summary-item,
+:root[data-theme="dark"] .next-action,
+:root[data-theme="dark"] .external-influence,
+:root[data-theme="dark"] .impact-trail,
+:root[data-theme="dark"] .child-project-card,
+:root[data-theme="dark"] .task-card,
+:root[data-theme="dark"] .tabs button,
+:root[data-theme="dark"] .view-switch,
+:root[data-theme="dark"] .topbar-search,
+:root[data-theme="dark"] .deadline,
+:root[data-theme="dark"] .project-deadline-box,
+:root[data-theme="dark"] .modal-section,
+:root[data-theme="dark"] .modal-actions button,
+:root[data-theme="dark"] .external-influence-grid button {
+  background: #1f1f1f;
+}
+
+:root[data-theme="dark"] input,
+:root[data-theme="dark"] select,
+:root[data-theme="dark"] textarea {
+  background-color: #1c1c1c;
+  color: var(--text);
+}
+
+:root[data-theme="dark"] .tabs button.active,
+:root[data-theme="dark"] .view-switch button.active,
+:root[data-theme="dark"] .graph-filter button.active,
+:root[data-theme="dark"] .modal-actions button[type="submit"] {
+  background: #e8e8e8;
+  color: #111111;
+}
+
+:root[data-theme="dark"] .rollup-bar,
+:root[data-theme="dark"] .breakdown-meter,
+:root[data-theme="dark"] .due-rail {
+  background: #333333;
+}
+
+:root[data-theme="dark"] .completion-badge b,
+:root[data-theme="dark"] .detail-progress strong,
+:root[data-theme="dark"] .summary-item strong,
+:root[data-theme="dark"] .breakdown-number,
+:root[data-theme="dark"] .breakdown-weight,
+:root[data-theme="dark"] .graph-node strong,
+:root[data-theme="dark"] .graph-node small {
+  color: #f2f2f2;
+}
+
+:root[data-theme="dark"] .advance-badge b {
+  color: #d0d0d0;
+}
+
+:root[data-theme="dark"] .completion-badge small,
+:root[data-theme="dark"] .detail-progress span,
+:root[data-theme="dark"] .summary-item span,
+:root[data-theme="dark"] .meta-chip,
+:root[data-theme="dark"] .project-item-meta,
+:root[data-theme="dark"] .rollup-panel span,
+:root[data-theme="dark"] .rollup-hint,
+:root[data-theme="dark"] .breakdown-name small {
+  color: #aaaaaa;
+}
+
+:root[data-theme="dark"] .rollup-bar i {
+  background: #3a3a3a;
+  border-right-color: #171717;
+}
+
+:root[data-theme="dark"] .rollup-bar b,
+:root[data-theme="dark"] .breakdown-meter i,
+:root[data-theme="dark"] .graph-progress i,
+:root[data-theme="dark"] .due-rail i {
+  background: #f0f0f0;
+}
+
+:root[data-theme="dark"] .advance-rollup .rollup-bar b,
+:root[data-theme="dark"] .advance-mini-graph .rollup-bar b,
+:root[data-theme="dark"] .advance-rollup .breakdown-meter i {
+  background: #bcbcbc;
+}
+
+:root[data-theme="dark"] .rollup-bar i.external {
+  background: #2a2a2a;
+}
+
+:root[data-theme="dark"] .rollup-bar i.external b,
+:root[data-theme="dark"] .rollup-breakdown-row.external .breakdown-meter i {
+  background: repeating-linear-gradient(
+    90deg,
+    #f0f0f0 0,
+    #f0f0f0 3px,
+    #8f8f8f 3px,
+    #8f8f8f 6px
+  );
+}
+
+:root[data-theme="dark"] .project-item.active::before {
+  background: #f2f2f2;
+}
+
+:root[data-theme="dark"] .tree-rail,
+:root[data-theme="dark"] .project-item:not(.depth-0) .tree-rail {
+  background: #303030;
+}
+
+:root[data-theme="dark"] .meta-chip {
+  border-color: #3b3b3b;
+  background: #202020;
+}
+
+:root[data-theme="dark"] .meta-chip.mini-alert,
+:root[data-theme="dark"] .summary-item.urgent {
+  border-color: #8f3c34;
+  background: #221816;
+  color: #ff8b80;
+}
+
+:root[data-theme="dark"] .summary-item,
+:root[data-theme="dark"] .rollup-panel,
+:root[data-theme="dark"] .impact-trail,
+:root[data-theme="dark"] .external-influence,
+:root[data-theme="dark"] .external-influence button,
+:root[data-theme="dark"] .work-flow-summary,
+:root[data-theme="dark"] .next-action,
+:root[data-theme="dark"] .child-project-card,
+:root[data-theme="dark"] .task-card,
+:root[data-theme="dark"] .graph-note,
+:root[data-theme="dark"] .graph-minimap {
+  border-color: var(--glass-line);
+  background: var(--glass-surface);
+  box-shadow: var(--glass-glow), var(--glass-highlight);
+}
+
+:root[data-theme="dark"] .impact-chain button {
+  background: #1b1b1b;
+}
+
+:root[data-theme="dark"] .impact-chain button.active {
+  border-color: #f0f0f0;
+  background: #f0f0f0;
+  color: #111111;
+}
+
+:root[data-theme="dark"] .impact-chain button.active::before,
+:root[data-theme="dark"] .impact-chain button.active em {
+  color: #111111;
+}
+
+:root[data-theme="dark"] .breakdown-weight input {
+  background: #111111;
+  border-color: #4a4a4a;
+  color: #f0f0f0;
+}
+
+:root[data-theme="dark"] .detail-kicker,
+:root[data-theme="dark"] .project-deadline-box button:hover {
+  color: #eeeeee;
+}
+
+:root[data-theme="dark"] .graph-canvas {
+  border-color: #3f3f3f;
+  background:
+    radial-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px),
+    #151515;
+  background-size: 20px 20px;
+}
+
+:root[data-theme="dark"] .graph-view-full .graph-stage,
+:root[data-theme="dark"] .graph-view-full .graph-canvas {
+  background:
+    radial-gradient(circle at 20% 16%, rgba(255, 255, 255, 0.035), transparent 30%),
+    radial-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px),
+    #151515;
+  background-size: auto, 20px 20px, auto;
+}
+
+:root[data-theme="dark"] .graph-view-full .graph-note,
+:root[data-theme="dark"] .graph-view-full .graph-minimap {
+  background: rgba(31, 31, 31, 0.78);
+}
+
+:root[data-theme="dark"] .graph-node {
+  border-color: var(--glass-line);
+  background: rgba(28, 28, 28, 0.97);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.28), var(--glass-highlight);
+}
+
+:root[data-theme="dark"] .graph-node.project.scoped:not(.selected) {
+  border-color: var(--line-strong);
+}
+
+:root[data-theme="dark"] .graph-node.project.multi-selected {
+  border-color: var(--text);
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--text) 15%, transparent),
+    var(--glass-glow);
+}
+
+:root[data-theme="dark"] .graph-node.task {
+  background: color-mix(in srgb, var(--surface) 65%, transparent);
+}
+
+:root[data-theme="dark"] .graph-node-actions button {
+  border-color: #444444;
+  background: #181818;
+  color: #cfcfcf;
+}
+
+:root[data-theme="dark"] .graph-node-actions button:hover {
+  border-color: #777777;
+  color: #ffffff;
+}
+
+:root[data-theme="dark"] .graph-port {
+  border-color: #222222;
+  background: #f0f0f0;
+}
+
+:root[data-theme="dark"] .graph-context-menu {
+  border-color: #4f4f4f;
+  background: #191919;
+}
+
+:root[data-theme="dark"] .graph-drag-handle,
+:root[data-theme="dark"] .graph-edge-control {
+  border-color: #4f4f4f;
+  background: #1a1a1a;
+  color: #cfcfcf;
+}
+
+:root[data-theme="dark"] .graph-interaction-hint {
+  border-color: #3c3c3c;
+  background: rgba(24, 24, 24, 0.9);
+  color: #cfcfcf;
+}
+
+:root[data-theme="dark"] .graph-filter {
+  border-color: #444444;
+  background: #1f1f1f;
+}
+
+:root[data-theme="dark"] .graph-legend {
+  border-color: #3c3c3c;
+  background: rgba(24, 24, 24, 0.9);
+  color: #cfcfcf;
+}
+
+:root[data-theme="dark"] .graph-minimap {
+  border-color: #4a4a4a;
+  background: rgba(24, 24, 24, 0.9);
+}
+
+:root[data-theme="dark"] .graph-minimap-grid {
+  fill: #1d1d1d;
+  stroke: #3a3a3a;
+}
+
+:root[data-theme="dark"] .graph-minimap-view {
+  stroke: #f0f0f0;
+}
+
+:root[data-theme="dark"] .graph-inline-trigger {
+  border-color: #444444;
+  background: rgba(24, 24, 24, 0.92);
+  color: #d0d0d0;
+}
+
+:root[data-theme="dark"] .graph-inline-edit {
+  border-color: #f0f0f0;
+  background: #161616;
+  color: #f0f0f0;
+}
+
+:root[data-theme="dark"] .task-card.focused {
+  border-color: #f0f0f0;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.12);
+}
+
+:root[data-theme="dark"] .task-focus-button {
+  border-color: #444444;
+  background: #181818;
+  color: #cfcfcf;
+}
+
+:root[data-theme="dark"] .task-focus-button[aria-pressed="true"] {
+  border-color: #f0f0f0;
+  background: #f0f0f0;
+  color: #111111;
+}
+
+:root[data-theme="dark"] .graph-lines path.hierarchy {
+  stroke: #8d8d8d;
+}
+
+:root[data-theme="dark"] .graph-lines path.task {
+  stroke: #6f6f6f;
+}
+
+:root[data-theme="dark"] .graph-lines path.external {
+  stroke: #f0f0f0;
+}
+
+:root[data-theme="dark"] .graph-lines path.external.active {
+  stroke: #f0f0f0;
+}
+
+:root[data-theme="dark"] .graph-lines path.active {
+  stroke: #d8d8d8;
+}
+
+:root[data-theme="dark"] .graph-progress {
+  background: #3a3a3a;
+}
+
+:root[data-theme="dark"] .graph-progress i {
+  background: #f0f0f0;
+}
+
+:root[data-theme="dark"] .green-command,
+:root[data-theme="dark"] .bottom-command {
+  color: #f2f2f2;
+}
+
+:root[data-theme="dark"] .green-command:hover,
+:root[data-theme="dark"] .bottom-command:hover {
+  color: #ffffff;
+}
+
+:root[data-theme="dark"] .detail-panel::before {
+  content: none;
+}
+
+@keyframes flow {
+  to {
+    stroke-dashoffset: -20;
+  }
+}
+
+.summary-item > *,
+.detail-progress > *,
+.project-deadline-box > *,
+.rollup-panel > *,
+.impact-trail > *,
+.external-influence > *,
+.external-influence button > *,
+.work-flow-summary > *,
+.work-flow-grid > div > *,
+.next-action > *,
+.child-project-card > *,
+.task-card > *,
+.graph-filter > *,
+.graph-zoom > *,
+.graph-note > *,
+.graph-minimap > *,
+.task-modal > *,
+.note-modal > *,
+.complete-modal > *,
+.delete-modal > *,
+.connection-modal > *,
+.deadline-modal > *,
+.preferences-modal > *,
+.project-modal > * {
+  position: relative;
+  z-index: 1;
+}
+
+:root[data-theme="dark"] .summary-item,
+:root[data-theme="dark"] .detail-progress,
+:root[data-theme="dark"] .project-deadline-box,
+:root[data-theme="dark"] .rollup-panel,
+:root[data-theme="dark"] .impact-trail,
+:root[data-theme="dark"] .external-influence,
+:root[data-theme="dark"] .external-influence button,
+:root[data-theme="dark"] .work-flow-summary,
+:root[data-theme="dark"] .work-flow-grid > div,
+:root[data-theme="dark"] .next-action,
+:root[data-theme="dark"] .child-project-card,
+:root[data-theme="dark"] .task-card,
+:root[data-theme="dark"] .graph-filter,
+:root[data-theme="dark"] .graph-zoom,
+:root[data-theme="dark"] .graph-note,
+:root[data-theme="dark"] .graph-minimap,
+:root[data-theme="dark"] .task-modal,
+:root[data-theme="dark"] .note-modal,
+:root[data-theme="dark"] .complete-modal,
+:root[data-theme="dark"] .delete-modal,
+:root[data-theme="dark"] .connection-modal,
+:root[data-theme="dark"] .deadline-modal,
+:root[data-theme="dark"] .preferences-modal,
+:root[data-theme="dark"] .project-modal {
+  border-color: var(--glass-line);
+  background: var(--glass-strong);
+  box-shadow: var(--glass-highlight);
+  backdrop-filter: var(--glass-blur);
+}
+
+:root:not([data-theme="dark"]) .summary-item,
+:root:not([data-theme="dark"]) .detail-progress,
+:root:not([data-theme="dark"]) .project-deadline-box,
+:root:not([data-theme="dark"]) .rollup-panel,
+:root:not([data-theme="dark"]) .impact-trail,
+:root:not([data-theme="dark"]) .external-influence,
+:root:not([data-theme="dark"]) .external-influence button,
+:root:not([data-theme="dark"]) .work-flow-summary,
+:root:not([data-theme="dark"]) .work-flow-grid > div,
+:root:not([data-theme="dark"]) .next-action,
+:root:not([data-theme="dark"]) .child-project-card,
+:root:not([data-theme="dark"]) .task-card,
+:root:not([data-theme="dark"]) .graph-filter,
+:root:not([data-theme="dark"]) .graph-zoom,
+:root:not([data-theme="dark"]) .graph-note,
+:root:not([data-theme="dark"]) .graph-minimap {
+  border-color: rgba(27, 54, 93, 0.14);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 253, 246, 0.82),
+    inset 0 -1px 0 rgba(88, 73, 48, 0.04),
+    0 1px 2px rgba(83, 69, 43, 0.025);
+}
+
+:root:not([data-theme="dark"]) .task-modal,
+:root:not([data-theme="dark"]) .note-modal,
+:root:not([data-theme="dark"]) .complete-modal,
+:root:not([data-theme="dark"]) .delete-modal,
+:root:not([data-theme="dark"]) .connection-modal,
+:root:not([data-theme="dark"]) .deadline-modal,
+:root:not([data-theme="dark"]) .preferences-modal,
+:root:not([data-theme="dark"]) .project-modal {
+  border-color: rgba(27, 54, 93, 0.13);
+  background: rgba(251, 250, 243, 0.76);
+  box-shadow:
+    0 14px 34px rgba(73, 61, 39, 0.11),
+    inset 0 1px 0 rgba(255, 253, 246, 0.88),
+    inset 0 -1px 0 rgba(88, 73, 48, 0.06);
+  backdrop-filter: blur(14px) saturate(1.16);
+}
+
+:root:not([data-theme="dark"]) .task-modal::before,
+:root:not([data-theme="dark"]) .note-modal::before,
+:root:not([data-theme="dark"]) .complete-modal::before,
+:root:not([data-theme="dark"]) .delete-modal::before,
+:root:not([data-theme="dark"]) .connection-modal::before,
+:root:not([data-theme="dark"]) .deadline-modal::before,
+:root:not([data-theme="dark"]) .preferences-modal::before,
+:root:not([data-theme="dark"]) .project-modal::before {
+  background: linear-gradient(124deg, rgba(255, 253, 246, 0.58), transparent 42%, rgba(245, 244, 237, 0.24));
+  opacity: 0.78;
+}
+
+:root[data-theme="dark"] .rollup-panel,
+:root[data-theme="dark"] .impact-trail,
+:root[data-theme="dark"] .external-influence,
+:root[data-theme="dark"] .work-flow-summary,
+:root[data-theme="dark"] .child-project-card,
+:root[data-theme="dark"] .task-card,
+:root[data-theme="dark"] .graph-note,
+:root[data-theme="dark"] .graph-minimap,
+:root[data-theme="dark"] .task-modal,
+:root[data-theme="dark"] .note-modal,
+:root[data-theme="dark"] .complete-modal,
+:root[data-theme="dark"] .delete-modal,
+:root[data-theme="dark"] .connection-modal,
+:root[data-theme="dark"] .deadline-modal,
+:root[data-theme="dark"] .preferences-modal,
+:root[data-theme="dark"] .project-modal {
+  box-shadow: var(--glass-glow), var(--glass-highlight);
+}
+
+:root[data-theme="dark"] .rollup-panel::before,
+:root[data-theme="dark"] .impact-trail::before,
+:root[data-theme="dark"] .external-influence::before,
+:root[data-theme="dark"] .work-flow-summary::before,
+:root[data-theme="dark"] .summary-item::before,
+:root[data-theme="dark"] .detail-progress::before,
+:root[data-theme="dark"] .project-deadline-box::before,
+:root[data-theme="dark"] .next-action::before,
+:root[data-theme="dark"] .child-project-card::before,
+:root[data-theme="dark"] .task-card::before,
+:root[data-theme="dark"] .graph-filter::before,
+:root[data-theme="dark"] .graph-zoom::before,
+:root[data-theme="dark"] .graph-note::before,
+:root[data-theme="dark"] .graph-minimap::before,
+:root[data-theme="dark"] .task-modal::before,
+:root[data-theme="dark"] .note-modal::before,
+:root[data-theme="dark"] .complete-modal::before,
+:root[data-theme="dark"] .delete-modal::before,
+:root[data-theme="dark"] .connection-modal::before,
+:root[data-theme="dark"] .deadline-modal::before,
+:root[data-theme="dark"] .preferences-modal::before,
+:root[data-theme="dark"] .project-modal::before {
+  opacity: 0.78;
+}
+
+:root:not([data-theme="dark"]) .modal-backdrop {
+  background: rgba(27, 54, 93, 0.16);
+  backdrop-filter: blur(2px);
+}
+
+:root:not([data-theme="dark"]) .modal-backdrop .task-modal,
+:root:not([data-theme="dark"]) .modal-backdrop .note-modal,
+:root:not([data-theme="dark"]) .modal-backdrop .complete-modal,
+:root:not([data-theme="dark"]) .modal-backdrop .delete-modal,
+:root:not([data-theme="dark"]) .modal-backdrop .connection-modal,
+:root:not([data-theme="dark"]) .modal-backdrop .deadline-modal,
+:root:not([data-theme="dark"]) .modal-backdrop .preferences-modal,
+:root:not([data-theme="dark"]) .modal-backdrop .project-modal {
+  border-color: rgba(27, 54, 93, 0.14);
+  background: rgba(251, 250, 243, 0.78);
+  box-shadow:
+    0 18px 44px rgba(73, 61, 39, 0.14),
+    inset 0 1px 0 rgba(255, 253, 246, 0.9),
+    inset 0 -1px 0 rgba(88, 73, 48, 0.06);
+  backdrop-filter: blur(16px) saturate(1.18);
+}
+
+:root:not([data-theme="dark"]) .modal-backdrop .task-modal::before,
+:root:not([data-theme="dark"]) .modal-backdrop .note-modal::before,
+:root:not([data-theme="dark"]) .modal-backdrop .complete-modal::before,
+:root:not([data-theme="dark"]) .modal-backdrop .delete-modal::before,
+:root:not([data-theme="dark"]) .modal-backdrop .connection-modal::before,
+:root:not([data-theme="dark"]) .modal-backdrop .deadline-modal::before,
+:root:not([data-theme="dark"]) .modal-backdrop .preferences-modal::before,
+:root:not([data-theme="dark"]) .modal-backdrop .project-modal::before {
+  background: linear-gradient(124deg, rgba(255, 253, 246, 0.58), transparent 42%, rgba(245, 244, 237, 0.24));
+  opacity: 0.78;
+}
+
+:root:not([data-theme="dark"]) .modal-backdrop .modal-section {
+  border-color: rgba(27, 54, 93, 0.12);
+  background: rgba(251, 250, 243, 0.64);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 253, 246, 0.78),
+    inset 0 -1px 0 rgba(88, 73, 48, 0.035);
+  backdrop-filter: blur(10px) saturate(1.12);
+}
