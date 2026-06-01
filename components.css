@@ -124,20 +124,21 @@ svg {
 
 .tabs {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   margin: 18px 0 16px;
   overflow-x: auto;
   scrollbar-width: none;
+  flex-wrap: wrap;
 }
 
 .tabs button {
   min-width: max-content;
   border: 0;
   border-radius: 999px;
-  padding: 6px 10px;
+  padding: 6px 8px;
   background: transparent;
   color: var(--muted);
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .tabs button.active {
@@ -167,6 +168,7 @@ svg {
 .project-item {
   position: relative;
   width: 100%;
+  min-width: 0;
   border: 1px solid transparent;
   border-radius: 8px;
   display: grid;
@@ -225,6 +227,8 @@ svg {
   align-items: center;
   justify-content: space-between;
   gap: 14px;
+  width: 100%;
+  min-width: 0;
 }
 
 .project-item-top strong {
@@ -350,6 +354,9 @@ svg {
   color: var(--muted);
   line-height: 1;
   white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .status-chip {
