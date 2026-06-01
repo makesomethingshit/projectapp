@@ -174,9 +174,13 @@ export function renderArchiveView() {
         </div>
         <input data-edit-archive-desc type="text" value="${escapeHtml(resource.desc || "")}" aria-label="아카이브 설명" placeholder="간단 설명" style="padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--text);" />
         <input data-edit-archive-tags type="text" value="${escapeHtml((resource.tags || []).join(", "))}" aria-label="아카이브 주제" placeholder="주제 예: 브랜딩, 레퍼런스" style="padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--text);" />
-        <div style="display: flex; gap: 6px;">
-          <input data-edit-archive-path type="text" value="${escapeHtml(resource.path)}" aria-label="아카이브 경로 또는 URL" style="flex: 1; min-width: 0; padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--text);" required />
-          <button type="submit" style="padding: 6px 14px; border: 0; border-radius: 6px; background: var(--text); color: var(--surface); cursor: pointer; font-weight: 900;">저장</button>
+        <div style="display: flex; gap: 6px; align-items: center;">
+          <div style="display: flex; gap: 4px; flex: 1; min-width: 0;">
+            <input data-edit-archive-path type="text" value="${escapeHtml(resource.path)}" aria-label="아카이브 경로 또는 URL" style="flex: 1; min-width: 0; padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--text);" required />
+            <button type="button" class="edit-archive-select-file" data-resource-id="${resource.id}" style="padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--panel-raised); color: var(--text); cursor: pointer; white-space: nowrap; font-size: 11px;">📁 파일</button>
+            <button type="button" class="edit-archive-select-folder" data-resource-id="${resource.id}" style="padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--panel-raised); color: var(--text); cursor: pointer; white-space: nowrap; font-size: 11px;">📂 폴더</button>
+          </div>
+          <button type="submit" style="padding: 6px 14px; border: 0; border-radius: 6px; background: var(--text); color: var(--surface); cursor: pointer; font-weight: 900; flex-shrink: 0;">저장</button>
         </div>
       </form>
     </details>
@@ -184,7 +188,7 @@ export function renderArchiveView() {
 
   const buildCategorySection = (title, items) => {
     const listHtml = items.length ? items.map((resource) => `
-      <div class="archive-resource-row" style="display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 8px; box-shadow: var(--shadow-sm);">
+      <div class="archive-resource-row js-archive-item" data-resource-id="${resource.id}" data-resource-path="${escapeHtml(resource.path)}" style="display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 8px; box-shadow: var(--shadow-sm);">
         <div style="text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; margin-right: 8px;">
           <strong style="display: block; font-size: 12px; color: var(--text);">${archiveIcon(resource.type)} · ${escapeHtml(resource.name)}</strong>
           ${resource.desc ? `<p style="margin: 3px 0 0 0; font-size: 10px; color: var(--muted);">${escapeHtml(resource.desc)}</p>` : ""}
@@ -251,7 +255,11 @@ export function renderArchiveView() {
         </div>
         <div style="display: flex; gap: 6px;">
           <input type="text" id="newArchiveDesc" placeholder="간단 설명" style="flex: 1; padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--text);" />
-          <input type="text" id="newArchivePath" placeholder="로컬 경로 또는 웹 URL" style="flex: 1.5; padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--text);" required />
+          <div style="display: flex; gap: 4px; flex: 1.5; min-width: 0;">
+            <input type="text" id="newArchivePath" placeholder="로컬 경로 또는 웹 URL" style="flex: 1; min-width: 0; padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--text);" required />
+            <button type="button" id="newArchiveSelectFile" style="padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--panel-raised); color: var(--text); cursor: pointer; white-space: nowrap; font-size: 11px;">📁 파일</button>
+            <button type="button" id="newArchiveSelectFolder" style="padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--panel-raised); color: var(--text); cursor: pointer; white-space: nowrap; font-size: 11px;">📂 폴더</button>
+          </div>
           <input type="text" id="newArchiveTags" placeholder="주제 예: 브랜딩, 레퍼런스" style="flex: 1; padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--text);" />
           <button type="submit" style="padding: 6px 16px; border: none; border-radius: 6px; background: var(--accent); color: white; cursor: pointer; font-weight: bold;">추가</button>
         </div>
@@ -492,7 +500,7 @@ export function workFlowSummaryMarkup(project, allTasks, nextTask, lowTasks) {
 
 export function renderLinkedArchivePanel(project, allTasks = []) {
   const projectId = Number(project?.id);
-  const taskIds = new Set(allTasks.map((task) => Number(task.id)));
+  const taskIds = new Set(allTasks.map((task) => Number(task?.id || 0)));
   const linked = (state.archiveResourceLinks || [])
     .filter((link) => {
       return (link.targetType === "project" && Number(link.targetId) === projectId)
@@ -510,7 +518,7 @@ export function renderLinkedArchivePanel(project, allTasks = []) {
 
   const typeLabel = (type) => type === "folder" ? "폴더" : type === "link" ? "링크" : "파일";
   const listMarkup = linked.length ? linked.map(({ link, resource, task }) => `
-    <div class="archive-resource-row" style="display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 8px; box-shadow: var(--shadow-sm);">
+    <div class="archive-resource-row js-archive-item" data-resource-id="${resource.id}" data-resource-path="${escapeHtml(resource.path)}" style="display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 8px; box-shadow: var(--shadow-sm);">
       <div style="text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; margin-right: 8px;">
         <strong style="display: block; font-size: 12px; color: var(--text);">${typeLabel(resource.type)} · ${escapeHtml(resource.name)}</strong>
         <span class="meta-chip ${link.targetType === "task" ? "" : "quiet-chip"}" style="display: inline-flex; margin-top: 5px;">${link.targetType === "task" ? `할 일 · ${escapeHtml(task?.name || "연결된 할 일")}` : "현재 프로젝트에 연결"}</span>

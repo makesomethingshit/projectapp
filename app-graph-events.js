@@ -369,6 +369,65 @@ export function initEvents() {
       closeBottleneckPopover();
     }
 
+    // -- OS 파일/폴더 선택기 이벤트 --
+    const newFileBtn = event.target.closest("#newArchiveSelectFile");
+    if (newFileBtn) {
+      event.preventDefault();
+      window.workshopApp.selectFileOrFolder("file").then((selectedPath) => {
+        if (selectedPath) {
+          const pathInput = document.getElementById("newArchivePath");
+          const typeSelect = document.getElementById("newArchiveType");
+          if (pathInput) pathInput.value = selectedPath;
+          if (typeSelect) typeSelect.value = "file";
+        }
+      }).catch((err) => console.error("Failed to select file:", err));
+      return;
+    }
+
+    const newFolderBtn = event.target.closest("#newArchiveSelectFolder");
+    if (newFolderBtn) {
+      event.preventDefault();
+      window.workshopApp.selectFileOrFolder("folder").then((selectedPath) => {
+        if (selectedPath) {
+          const pathInput = document.getElementById("newArchivePath");
+          const typeSelect = document.getElementById("newArchiveType");
+          if (pathInput) pathInput.value = selectedPath;
+          if (typeSelect) typeSelect.value = "folder";
+        }
+      }).catch((err) => console.error("Failed to select folder:", err));
+      return;
+    }
+
+    const editFileBtn = event.target.closest(".edit-archive-select-file");
+    if (editFileBtn) {
+      event.preventDefault();
+      window.workshopApp.selectFileOrFolder("file").then((selectedPath) => {
+        if (selectedPath) {
+          const form = editFileBtn.closest("form");
+          const pathInput = form?.querySelector("[data-edit-archive-path]");
+          const typeSelect = form?.querySelector("[data-edit-archive-type]");
+          if (pathInput) pathInput.value = selectedPath;
+          if (typeSelect) typeSelect.value = "file";
+        }
+      }).catch((err) => console.error("Failed to select file for editing:", err));
+      return;
+    }
+
+    const editFolderBtn = event.target.closest(".edit-archive-select-folder");
+    if (editFolderBtn) {
+      event.preventDefault();
+      window.workshopApp.selectFileOrFolder("folder").then((selectedPath) => {
+        if (selectedPath) {
+          const form = editFolderBtn.closest("form");
+          const pathInput = form?.querySelector("[data-edit-archive-path]");
+          const typeSelect = form?.querySelector("[data-edit-archive-type]");
+          if (pathInput) pathInput.value = selectedPath;
+          if (typeSelect) typeSelect.value = "folder";
+        }
+      }).catch((err) => console.error("Failed to select folder for editing:", err));
+      return;
+    }
+
     const openResBtn = event.target.closest("[data-open-archive-path]");
     if (openResBtn) {
       event.preventDefault();
