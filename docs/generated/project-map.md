@@ -67,6 +67,7 @@ UI 마크업을 바꾸기 전 이 파일들을 확인합니다.
 - `test_bottleneck_alert_design.mjs`
 - `test_bottleneck_hierarchy_direction.mjs`
 - `test_project_progress_rollup_contract.mjs`
+- `test_encoding_integrity.mjs`
 - `test_detail_bottleneck_navigation.mjs`
 - `test_graph_navigation.mjs`
 - `test_graph_port_labels.mjs`
@@ -99,7 +100,7 @@ UI 마크업을 바꾸기 전 이 파일들을 확인합니다.
 
 ## 불확실하거나 위험한 영역
 
-- 인코딩 손상 때문에 기존 한국어 UI 문자열과 `CHANGELOG.md` 일부를 소스만 보고 신뢰하기 어렵습니다. 주요 진입 문서는 새 harness 기준으로 정리했습니다.
+- 한국어 UI 문자열과 CSS `content` 문자열은 UTF-8 기준으로 관리합니다. 인코딩 회귀는 `test_encoding_integrity.mjs`로 확인합니다.
 - 폴더 동작이 별도 모델로 표현되어 있지 않습니다.
 - 프로젝트 상태는 수동입니다.
 - 완성도/진행도는 저장 fallback 값과 표시용 파생값이 함께 존재합니다. 표시에는 `getProjectDisplayProgress()`와 `getProjectDisplayAdvance()`를 우선 사용합니다.

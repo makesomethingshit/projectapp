@@ -2,7 +2,7 @@
 
 ## Harness 점검 중 발견한 문제
 
-- 초기 점검 시 기존 문서와 일부 UI 문자열에 인코딩 손상으로 보이는 깨진 텍스트가 있었습니다. `README.md`, `gemini.md`, `docs/APP_STRUCTURE.md`, `docs/DESIGN_SYSTEM.md`, `docs/DEPENDENCIES.md`, `docs/codex.md`는 새 harness 문서로 연결되는 한국어 호환 문서로 정리했습니다. 앱 소스 문자열과 `CHANGELOG.md`에는 여전히 깨진 텍스트가 남아 있습니다.
+- 초기 점검 시 기존 문서와 일부 UI 문자열에 인코딩 손상으로 보이는 깨진 텍스트가 있었습니다. `README.md`, `gemini.md`, `docs/APP_STRUCTURE.md`, `docs/DESIGN_SYSTEM.md`, `docs/DEPENDENCIES.md`, `docs/codex.md`는 새 harness 문서로 연결되는 한국어 호환 문서로 정리했습니다. 이후 CSS `content` 문자열의 깨진 라벨을 복구하고 `test_encoding_integrity.mjs`로 회귀 검사를 추가했습니다.
 - `package.json`에 `lint`, `typecheck`, `test`, `build` 스크립트가 없습니다. 테스트는 루트의 독립 실행 파일을 직접 실행해야 합니다.
 - `app.js`와 `app-graph-events.js`가 많은 책임을 가진 큰 조율 파일입니다.
 - `appSettings`에 사용자 설정, 그래프 레이아웃, 수식 노드, 아카이브 그래프 노드, 히스토리, 활동 로그, 단축키가 함께 들어 있습니다.

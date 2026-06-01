@@ -880,7 +880,7 @@ svg {
 }
 
 .impact-chain button::before {
-  content: "?�위 " counter(impact-step);
+  content: "순위 " counter(impact-step);
   position: absolute;
   top: 9px;
   left: 12px;
@@ -891,7 +891,7 @@ svg {
 }
 
 .impact-chain button:first-child::before {
-  content: "최상??;
+  content: "최상위";
 }
 
 .impact-chain button.active {
@@ -901,7 +901,7 @@ svg {
 }
 
 .impact-chain button.active::before {
-  content: "?�재";
+  content: "현재";
   color: var(--surface);
 }
 
@@ -933,7 +933,7 @@ svg {
 }
 
 .impact-chain i::before {
-  content: "??;
+  content: "→";
   font-size: 19px;
   font-weight: 700;
 }
@@ -1449,7 +1449,7 @@ svg {
 }
 
 .task-card.done .checkbox::before {
-  content: "??;
+  content: "✓";
   font-size: 13px;
   line-height: 1;
 }
@@ -1471,7 +1471,7 @@ svg {
 }
 
 .task-row.done .checkbox::before {
-  content: "??;
+  content: "✓";
   font-size: 13px;
   line-height: 1;
 }

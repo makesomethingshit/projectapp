@@ -29,6 +29,7 @@ node test_archive_view_modes.mjs
 node test_bottleneck_alert_design.mjs
 node test_bottleneck_hierarchy_direction.mjs
 node test_project_progress_rollup_contract.mjs
+node test_encoding_integrity.mjs
 node test_detail_bottleneck_navigation.mjs
 node test_graph_navigation.mjs
 node test_graph_port_labels.mjs
@@ -59,6 +60,7 @@ node test_build_data.js
 - 버튼, 카드, 패널, 모달에서 텍스트가 넘치지 않습니다.
 - 그래프 컨트롤이 중요한 그래프 내용을 가리지 않습니다.
 - 위험 색상은 삭제, 위험, 실제 경고에만 사용합니다.
+- 한국어 문구와 CSS `content` 문자열이 깨져 보이지 않는지 확인합니다.
 
 ## 프로젝트 로직 체크리스트
 
