@@ -17,14 +17,35 @@
 
 ## 타이포그래피
 
-현재 `variables.css`와 관련 CSS는 analog/light, digital/dark 계열의 폰트 토큰을 나눠 둔 것으로 보입니다.
+### 실제 사용 중인 폰트
 
-규칙:
+이 앱은 화면 모드(아날로그/디지털)에 따라 다른 영문 및 한글 폰트를 대응시켜 디자인의 심미성과 가독성을 통제합니다.
 
-- 컨트롤과 메타 정보에는 작은 보조 라벨을 사용합니다.
-- 패널 안 제목은 중간 굵기와 크기를 사용합니다.
-- 큰 글자는 상세 헤더와 핵심 프로젝트 지표에만 사용합니다.
-- 진행도, 카운터, 지표 숫자는 가능하면 tabular number를 사용합니다.
+- **아날로그 모드 (Analog / Light 테마)**
+  - **영문/숫자 (Latin)**: `"Aptos"` (구조적이고 조용한 샌스세리프 느낌)
+  - **한글 (Korean)**: `"Noto Serif KR"` (종이 인쇄물 느낌의 부드러운 명조체)
+- **디지털 모드 (Digital / Dark 테마)**
+  - **영문/숫자 (Latin)**: `"Segoe UI"` (현대적이고 명확한 디지털 서체)
+  - **한글 (Korean)**: `"Noto Sans KR"` (가독성 높은 고딕체)
+
+### 타이포그래피 위계 (Hierarchy)
+
+- **32px**: 상세 헤더의 핵심 프로젝트 타이틀 (`.detail-header h2`, `line-height: 1.12`)
+- **28px**: 핵심 진행률/완성도 지표 숫자 (`.detail-progress strong`, `font-variant-numeric: tabular-nums`)
+- **22px**: 최상단 앱 타이틀 (`.brand h1`)
+- **16px**: 목록 내 완성도/진행도 수치 (`.completion-badge b`), 패널 및 섹션별 대표 헤더 (`.section-heading h2`, `.task-section-title h3`)
+- **15px**: 최상단 앱 서브 타이틀 (`.brand p`)
+- **14px**: 프로젝트 아이템 제목 (`.project-item-top strong`), 새 프로젝트 추가 버튼 (`.bottom-command`)
+- **12px**: 필터 탭 메뉴 버튼 (`.tabs button`), 프로젝트 상세 속성 보조 라벨 (`.detail-progress span`)
+- **11px**: 프로젝트 목록 메타 정보 칩 (`.project-item-meta`), 가중치 비율 숫자 (`.breakdown-number`)
+- **10px**: 그래프 하단 라벨 및 배지 보조 소제목 (`.project-mini-graph small`, `.completion-badge small`)
+
+### 디자인 적용 규칙
+
+- 컨트롤과 메타 정보에는 작은 보조 라벨(10px ~ 11px)을 사용합니다.
+- 패널 안 제목은 중간 굵기와 크기(14px ~ 16px)를 사용합니다.
+- 큰 글자(28px ~ 32px)는 상세 헤더와 핵심 프로젝트 지표에만 사용합니다.
+- 진행도, 카운터, 지표 숫자는 가독성을 위해 가능하면 고정폭 숫자인 `tabular-nums` (`font-variant-numeric: tabular-nums`)를 명시합니다.
 - 기존 패턴이 아니라면 글자 간격을 과하게 조정하지 않습니다.
 
 ## 간격
