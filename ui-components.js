@@ -133,6 +133,34 @@ export function renderArchiveView() {
     }).join("");
   };
 
+  const getProjectTreeSorted = (projects) => {
+    const result = [];
+    const visited = new Set();
+    const traverse = (parentId, depth) => {
+      const children = projects.filter((p) => {
+        const pParentId = p.parentId === undefined ? null : p.parentId;
+        const targetParentId = parentId === null ? null : Number(parentId);
+        if (pParentId === null || pParentId === undefined) {
+          return targetParentId === null;
+        }
+        return Number(pParentId) === targetParentId;
+      });
+      children.sort((a, b) => a.name.localeCompare(b.name, "ko"));
+      for (const child of children) {
+        if (visited.has(child.id)) continue;
+        visited.add(child.id);
+        result.push({ project: child, depth });
+        traverse(child.id, depth + 1);
+      }
+    };
+    traverse(null, 0);
+    const remaining = projects.filter((p) => !visited.has(p.id));
+    for (const p of remaining) {
+      result.push({ project: p, depth: 0 });
+    }
+    return result;
+  };
+
   const projectAttachmentControlsMarkup = (resourceId) => {
     const linkedProjectIds = new Set(
       archiveLinks
@@ -146,10 +174,21 @@ export function renderArchiveView() {
         ${escapeHtml(project.name)} ×
       </button>
     `).join("") : `<span class="meta-chip quiet-chip">프로젝트 연결 없음</span>`;
+
+    const sortedTree = getProjectTreeSorted(state.projects);
+    const availableProjectSet = new Set(availableProjects.map((p) => p.id));
+    const optionsMarkup = sortedTree
+      .filter((item) => availableProjectSet.has(item.project.id))
+      .map((item) => {
+        const indent = "\u00A0\u00A0".repeat(item.depth) + (item.depth > 0 ? "└─ " : "");
+        return `<option value="${item.project.id}">${indent}${escapeHtml(item.project.name)}</option>`;
+      })
+      .join("");
+
     const selectMarkup = availableProjects.length ? `
       <select data-attach-archive-project="${resourceId}" aria-label="아카이브 프로젝트 연결" style="max-width: 180px; padding: 4px 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--text); font-size: 10.5px;">
         <option value="">프로젝트 연결</option>
-        ${availableProjects.map((project) => `<option value="${project.id}">${escapeHtml(project.name)}</option>`).join("")}
+        ${optionsMarkup}
       </select>
     ` : "";
     return `
