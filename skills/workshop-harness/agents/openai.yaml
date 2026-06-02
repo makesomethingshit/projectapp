@@ -1,0 +1,6 @@
+interface:
+  display_name: "Workshop Harness"
+  short_description: "Route work into packets and checks"
+  default_prompt: "Use $workshop-harness to plan and run a scoped workflow for this repository."
+policy:
+  allow_implicit_invocation: true

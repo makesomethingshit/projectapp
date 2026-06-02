@@ -1365,7 +1365,7 @@ svg {
 .task-card {
   min-width: 0;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto 24px;
+  grid-template-columns: minmax(0, 1fr) auto auto 24px;
   gap: 11px;
   align-items: start;
   align-self: start;
@@ -1405,6 +1405,47 @@ svg {
   font-size: 11px;
 }
 
+.task-card-main .task-resource-summary {
+  justify-self: start;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 2px 7px;
+  background: var(--panel-soft);
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.detail-collapsible-section {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: var(--panel-soft);
+}
+
+.detail-collapsible-section summary {
+  cursor: pointer;
+  list-style: none;
+}
+
+.detail-collapsible-section summary::-webkit-details-marker {
+  display: none;
+}
+
+.detail-collapsible-section summary::before {
+  content: "▸";
+  color: var(--quiet);
+  font-size: 10px;
+}
+
+.detail-collapsible-section[open] summary::before {
+  content: "▾";
+}
+
+.detail-collapsible-body {
+  margin-top: 10px;
+}
+
 .task-delete-button {
   width: 22px;
   height: 22px;
@@ -1433,10 +1474,176 @@ svg {
   white-space: nowrap;
 }
 
+.task-launch-button {
+  min-height: 22px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0 8px;
+  background: var(--panel-soft);
+  color: var(--text);
+  font-size: 10px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.task-launch-button:hover {
+  border-color: var(--text);
+  background: var(--surface);
+}
+
 .task-focus-button[aria-pressed="true"] {
   border-color: var(--text);
   background: var(--text);
   color: var(--surface);
+}
+
+.task-launcher-modal {
+  max-width: 620px;
+}
+
+.task-launcher-body {
+  display: grid;
+  gap: 14px;
+  margin-top: 10px;
+}
+
+.task-launcher-summary {
+  display: grid;
+  gap: 5px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+  background: var(--panel-raised);
+  text-align: left;
+}
+
+.task-launcher-summary span {
+  color: var(--quiet);
+  font-size: 10.5px;
+  font-weight: 800;
+}
+
+.task-launcher-summary strong {
+  color: var(--text);
+  font-size: 15px;
+}
+
+.task-launcher-summary p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.task-launcher-group {
+  display: grid;
+  gap: 8px;
+  text-align: left;
+}
+
+.task-launcher-group h3 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  color: var(--text);
+  font-size: 12px;
+}
+
+.task-launcher-group h3 span {
+  min-width: 20px;
+  border-radius: 999px;
+  padding: 2px 6px;
+  background: var(--panel-soft);
+  color: var(--muted);
+  font-size: 10px;
+  text-align: center;
+}
+
+.task-launcher-list {
+  display: grid;
+  gap: 8px;
+}
+
+.task-launcher-resource {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: var(--surface);
+}
+
+@media (max-width: 560px) {
+  .task-launcher-resource {
+    grid-template-columns: 1fr;
+  }
+
+  .task-launcher-open {
+    justify-self: start;
+  }
+}
+
+.task-launcher-resource-main {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.task-launcher-resource-main strong {
+  color: var(--text);
+  font-size: 12px;
+}
+
+.task-launcher-resource-main span,
+.task-launcher-resource-main small {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.task-launcher-open,
+.task-launcher-empty button {
+  min-height: 28px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 0 10px;
+  background: var(--panel-raised);
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.task-launcher-open:disabled {
+  color: var(--quiet);
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.task-launcher-empty {
+  display: grid;
+  gap: 8px;
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+  padding: 16px;
+  background: var(--panel-soft);
+  color: var(--muted);
+  text-align: left;
+}
+
+.task-launcher-empty strong {
+  color: var(--text);
+  font-size: 13px;
+}
+
+.task-launcher-empty p {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.5;
 }
 
 .task-completion-control {

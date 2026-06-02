@@ -10,7 +10,8 @@ import {
 
 import {
   escapeHtml,
-  dateFromOffset
+  dateFromOffset,
+  taskLauncherMarkup
 } from "./ui-components.js";
 
 const $ = (selector) => document.querySelector(selector);
@@ -76,6 +77,9 @@ const pinToggle = $("#pinToggle");
 
 const archiveSelectModal = $("#archiveSelectModal");
 const archiveSelectModalList = $("#archiveSelectModalList");
+const taskLauncherModal = $("#taskLauncherModal");
+const taskLauncherBody = $("#taskLauncherBody");
+const taskLauncherTitle = $("#taskLauncherTitle");
 
 export const activeWeightRefs = {
   activeLinkRef: null,
@@ -528,6 +532,20 @@ export function closeArchiveSelectModal() {
     archiveSelectModal.hidden = true;
   }
   state.tempArchiveNodePoint = null;
+}
+
+export function openTaskLauncherModal(taskId) {
+  const task = state.tasks.find((item) => Number(item.id) === Number(taskId));
+  state.launchingTaskId = Number(taskId);
+  if (taskLauncherTitle) taskLauncherTitle.textContent = task?.name || "작업 자료";
+  if (taskLauncherBody) taskLauncherBody.innerHTML = taskLauncherMarkup(taskId);
+  if (taskLauncherModal) taskLauncherModal.hidden = false;
+  taskLauncherModal?.querySelector(".task-launcher-open:not(:disabled), #taskLauncherGoArchive, #closeTaskLauncherModal")?.focus();
+}
+
+export function closeTaskLauncherModal() {
+  if (taskLauncherModal) taskLauncherModal.hidden = true;
+  state.launchingTaskId = null;
 }
 
 export function openArchiveSelectModal(point) {

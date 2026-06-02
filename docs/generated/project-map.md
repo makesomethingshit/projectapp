@@ -33,7 +33,7 @@
 
 ## 렌더링 컴포넌트
 
-- `ui-components.js`: 프로젝트 상세, 작업 카드, 아카이브 뷰, 지표, 롤업 설명 패널, 병목 카드와 추천 문구, 목록/상세 마크업.
+- `ui-components.js`: 프로젝트 상세, 작업 카드, 작업 자료 모달 마크업, 아카이브 뷰, 지표, 롤업 설명 패널, 병목 카드와 추천 문구, 목록/상세 마크업.
 - `graph-components.js`: 그래프 데이터, 그래프 노드/엣지 마크업, 수식 컨트롤, 미니맵/컨텍스트 메뉴, 전체 그래프 렌더링.
 
 UI 마크업을 바꾸기 전 이 파일들을 확인합니다.
@@ -87,7 +87,8 @@ UI 마크업을 바꾸기 전 이 파일들을 확인합니다.
 - `README.md`: 새 harness 문서로 안내하는 프로젝트 진입점.
 - `gemini.md`: 기존 AI 작업 규칙의 호환 진입점. 현재 기준은 `AGENTS.md`.
 - `AGENTS.md`: 최상위 에이전트 작업 라우터. 작업 유형별로 필요한 역할 문서만 읽게 합니다.
-- `docs/HARNESS.md`: 하네스 라우팅, 역할, 트리거, 산출물 규칙.
+- `skills/workshop-harness/`: 실행형 프로젝트 하네스 skill. `SKILL.md`, 역할 라우팅 reference, 위험/검증 reference, workflow helper scripts를 포함합니다.
+- `docs/HARNESS.md`: 사람용 하네스 라우팅 개요. 실행 규칙은 `skills/workshop-harness/SKILL.md`가 우선입니다.
 - `docs/agents/`: 역할별 에이전트 문서. UI, 상태 로직, 그래프, QA, 문서 작업의 읽기 범위와 검증 기준.
 - `docs/APP_STRUCTURE.md`: 구조 문서 호환 진입점. 현재 기준은 `FRONTEND.md`, `DATA_MODEL.md`, `PROJECT_LOGIC.md`.
 - `docs/DESIGN_SYSTEM.md`: 디자인 문서 호환 진입점. 현재 기준은 `DESIGN.md`.
@@ -100,6 +101,7 @@ UI 마크업을 바꾸기 전 이 파일들을 확인합니다.
 
 - `node_modules/`: 설치된 의존성.
 - `dist/`: 빌드 결과물.
+- `.workflow/`: `skills/workshop-harness`가 만드는 로컬 작업 산출물.
 - `backup/`: JSON 백업 데이터.
 - `data/`: 로컬 데이터/agent memory 관련 파일.
 - `iii-extract/`, `iii-x86_64-pc-windows-msvc.zip`: 추출/다운로드된 바이너리 관련 파일.
@@ -121,6 +123,6 @@ UI 마크업을 바꾸기 전 이 파일들을 확인합니다.
 - 프로젝트/작업/진행도 로직: `docs/PROJECT_LOGIC.md`, `state.js`, `calculator.js`, `app-graph-actions.js`, 관련 테스트.
 - 아카이브 변경: `docs/DATA_MODEL.md`, `archive-model.js`, `ui-components.js`, 아카이브 테스트.
 - 그래프 변경: `graph-components.js`, `app-graph-events.js`, `app-graph-actions.js`, `graph.css`, `graph-interactions.css`, 그래프 테스트.
-- UI 변경: `docs/HARNESS.md`, `docs/agents/ui-agent.md`, `docs/DESIGN.md`, `docs/FRONTEND.md`, `ui-components.js`, 관련 CSS.
-- 하네스/문서 구조 변경: `AGENTS.md`, `docs/HARNESS.md`, `docs/agents/docs-agent.md`, `docs/QUALITY_CHECK.md`.
+- UI 변경: `docs/HARNESS.md`, `docs/agents/ui-agent.md`, `docs/DESIGN.md`, `docs/FRONTEND.md`, `ui-components.js`, `app-modals.js`, `app-graph-events.js`, 관련 CSS.
+- 하네스/문서 구조 변경: `AGENTS.md`, `skills/workshop-harness/SKILL.md`, `skills/workshop-harness/references/`, `docs/HARNESS.md`, `docs/agents/docs-agent.md`, `docs/QUALITY_CHECK.md`.
 - Electron/import/export/focus widget: `main.js`, `preload.js`, `focus-widget.js`, `state.js`.

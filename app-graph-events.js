@@ -43,7 +43,9 @@ import {
   activeWeightRefs,
   getAllProjectRows,
   openArchiveSelectModal,
-  closeArchiveSelectModal
+  closeArchiveSelectModal,
+  openTaskLauncherModal,
+  closeTaskLauncherModal
 } from "./app-modals.js";
 
 import {
@@ -434,6 +436,13 @@ export function initEvents() {
       const path = openResBtn.dataset.openArchivePath;
       const type = openResBtn.dataset.archiveType;
       openResource(path, type);
+      return;
+    }
+
+    const taskLauncherBtn = event.target.closest("[data-open-task-launcher]");
+    if (taskLauncherBtn) {
+      event.preventDefault();
+      openTaskLauncherModal(Number(taskLauncherBtn.dataset.openTaskLauncher));
       return;
     }
 
@@ -853,6 +862,18 @@ export function initEvents() {
     if (event.target.closest("#closeProjectDeadlineModal") || event.target.closest("#cancelProjectDeadlineModal") || event.target === projectDeadlineModal) closeProjectDeadlineModal();
     if (event.target.closest("#closePreferencesModal") || event.target.closest("#cancelPreferencesModal") || event.target === preferencesModal) closePreferencesModal();
     if (event.target.closest("#closeProjectModal") || event.target.closest("#cancelProjectModal") || event.target === projectModal) closeProjectModal();
+    const taskLauncherModal = document.getElementById("taskLauncherModal");
+    if (event.target.closest("#closeTaskLauncherModal") || event.target.closest("#cancelTaskLauncherModal") || event.target === taskLauncherModal) {
+      closeTaskLauncherModal();
+    }
+    if (event.target.closest("#taskLauncherGoArchive")) {
+      state.appSettings.globalGraphView = false;
+      state.viewMode = "archive";
+      saveState();
+      closeTaskLauncherModal();
+      render();
+      return;
+    }
 
     const archiveSelectModal = document.getElementById("archiveSelectModal");
     if (event.target.closest("#closeArchiveSelectModal") || event.target.closest("#cancelArchiveSelectModal") || event.target === archiveSelectModal) {
@@ -1997,6 +2018,7 @@ export function initEvents() {
     if (!projectDeadlineModal.hidden) closeProjectDeadlineModal();
     if (!preferencesModal.hidden) closePreferencesModal();
     if (!projectModal.hidden) closeProjectModal();
+    if (!document.getElementById("taskLauncherModal")?.hidden) closeTaskLauncherModal();
     if (!weightSliderPopup.hidden) hideWeightSliderPopup();
     closeFileMenu();
   });

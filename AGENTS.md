@@ -4,7 +4,7 @@
 
 ## 작업 라우팅
 
-모든 작업은 먼저 `docs/HARNESS.md`를 읽고 작업 유형을 고릅니다. 그다음 필요한 역할 문서와 기준 문서만 읽습니다. 토큰을 아끼기 위해 관련 없는 문서를 선독하지 않습니다.
+모든 작업은 먼저 `skills/workshop-harness/SKILL.md`를 사용해 작업 유형과 워크플로우 필요 여부를 고릅니다. 그다음 필요한 역할 문서와 기준 문서만 읽습니다. 토큰을 아끼기 위해 관련 없는 문서를 선독하지 않습니다.
 
 | 작업 유형 | 먼저 읽을 역할 문서 | 함께 읽을 기준 문서 |
 | --- | --- | --- |
@@ -16,6 +16,8 @@
 | 파일 위치 파악 | `docs/HARNESS.md` | `docs/generated/project-map.md` |
 
 기존 `README.md`, `gemini.md`, `docs/APP_STRUCTURE.md`, `docs/DESIGN_SYSTEM.md`, `docs/DEPENDENCIES.md`, `docs/codex.md`는 새 harness 문서로 이어지는 호환 문서입니다. 세부 판단은 위 기준 문서들을 우선합니다.
+
+`docs/HARNESS.md`와 `docs/agents/*.md`는 사람도 읽을 수 있는 라우팅 설명입니다. 실행 절차, 패킷, 리스크 게이트, 워크플로우 산출물은 `skills/workshop-harness/`가 우선합니다.
 
 ## 공통 원칙
 

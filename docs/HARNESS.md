@@ -1,13 +1,13 @@
 # 하네스 라우팅
 
-이 문서는 미래 에이전트가 매번 모든 문서를 읽지 않도록 작업을 역할별로 나누는 라우터입니다. 기준 문서는 그대로 유지하고, 역할 문서가 필요한 문서와 파일만 좁혀 줍니다.
+이 문서는 미래 에이전트가 매번 모든 문서를 읽지 않도록 작업을 역할별로 나누는 사람용 개요입니다. 실행 절차는 `skills/workshop-harness/SKILL.md`가 우선하고, 이 문서는 기존 기준 문서와 역할 문서의 관계를 설명합니다.
 
 ## 목표
 
 - 작업 유형별로 필요한 맥락만 읽습니다.
 - 제품, UI, 상태 로직, 그래프, QA 책임을 섞지 않습니다.
 - 검증 결과와 남은 위험을 항상 남깁니다.
-- 하네스 문서는 실행 지시이고, `docs/PRODUCT.md`, `docs/DATA_MODEL.md`, `docs/PROJECT_LOGIC.md`, `docs/FRONTEND.md`, `docs/DESIGN.md`, `docs/QUALITY_CHECK.md`는 판단 기준입니다.
+- `skills/workshop-harness/`는 실행 하네스이고, `docs/PRODUCT.md`, `docs/DATA_MODEL.md`, `docs/PROJECT_LOGIC.md`, `docs/FRONTEND.md`, `docs/DESIGN.md`, `docs/QUALITY_CHECK.md`는 판단 기준입니다.
 
 ## 역할
 
@@ -37,6 +37,7 @@
 
 ## 산출물 규칙
 
+- broad/risky/multi-track 작업은 `skills/workshop-harness/scripts/new_workflow.py`로 `.workflow/<slug>/` 산출물을 만들 수 있습니다.
 - 코드 변경은 요청 범위 안에 둡니다.
 - 문서 변경은 어떤 계약이 바뀌었는지 명시합니다.
 - 검증을 실행하지 않았다면 이유를 남깁니다.

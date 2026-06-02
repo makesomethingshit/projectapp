@@ -599,13 +599,82 @@ export function renderLinkedArchivePanel(project, allTasks = []) {
   `).join("") : `<p class="notice" style="font-size: 11px; color: var(--muted); padding: 10px; border: 1px dashed var(--border); border-radius: 8px; margin: 0;">연결된 아카이브가 없습니다.</p>`;
 
   return `
-    <section class="archive-list-section" aria-label="연결된 아카이브" style="margin-top: 18px;">
-      <h3 style="text-align: left; font-size: 12px; margin-bottom: 8px; color: var(--text); display: flex; align-items: center; gap: 6px;">
+    <details class="archive-list-section detail-collapsible-section" aria-label="연결된 아카이브" style="margin-top: 18px;">
+      <summary style="text-align: left; font-size: 12px; margin-bottom: 8px; color: var(--text); display: flex; align-items: center; gap: 6px;">
         <span>연결된 아카이브</span>
         <span style="font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 10px; background: var(--panel-soft); color: var(--text);">${linked.length}</span>
-      </h3>
-      ${listMarkup}
-    </section>
+      </summary>
+      <div class="detail-collapsible-body">
+        ${listMarkup}
+      </div>
+    </details>
+  `;
+}
+
+export function taskLauncherMarkup(taskId) {
+  const task = state.tasks.find((item) => Number(item.id) === Number(taskId));
+  if (!task) {
+    return `
+      <div class="task-launcher-empty">
+        <strong>할 일을 찾을 수 없습니다.</strong>
+        <p>목록이 갱신되었을 수 있습니다.</p>
+      </div>
+    `;
+  }
+
+  const project = getProject(task.projectId);
+  const resources = (state.archiveResourceLinks || [])
+    .filter((link) => link.targetType === "task" && Number(link.targetId) === Number(task.id))
+    .map((link) => (state.archiveResources || []).find((resource) => Number(resource.id) === Number(link.resourceId)))
+    .filter(Boolean);
+  const grouped = {
+    file: resources.filter((resource) => resource.type === "file"),
+    folder: resources.filter((resource) => resource.type === "folder"),
+    link: resources.filter((resource) => resource.type === "link"),
+    other: resources.filter((resource) => !["file", "folder", "link"].includes(resource.type))
+  };
+  const groupLabels = {
+    file: "주요 파일",
+    folder: "폴더",
+    link: "참고 링크",
+    other: "기타 자료"
+  };
+  const typeLabel = (type) => type === "folder" ? "폴더" : type === "link" ? "링크" : "파일";
+  const resourceRow = (resource) => `
+    <div class="task-launcher-resource js-archive-item" data-resource-id="${resource.id}" data-resource-path="${escapeHtml(resource.path)}">
+      <div class="task-launcher-resource-main">
+        <strong>${escapeHtml(resource.name)}</strong>
+        ${resource.desc ? `<span>${escapeHtml(resource.desc)}</span>` : ""}
+        <small>${escapeHtml(resource.path || "경로 없음")}</small>
+      </div>
+      <button type="button" class="task-launcher-open" data-open-archive-path="${escapeHtml(resource.path)}" data-archive-type="${resource.type}" ${resource.path ? "" : "disabled"}>${typeLabel(resource.type)} 열기</button>
+    </div>
+  `;
+  const groupsMarkup = Object.entries(grouped)
+    .filter(([, items]) => items.length)
+    .map(([type, items]) => `
+      <section class="task-launcher-group">
+        <h3>${groupLabels[type]} <span>${items.length}</span></h3>
+        <div class="task-launcher-list">
+          ${items.map(resourceRow).join("")}
+        </div>
+      </section>
+    `)
+    .join("");
+
+  return `
+    <div class="task-launcher-summary">
+      <span>${project ? escapeHtml(getProjectPath(project).join(" / ")) : "독립 할 일"}</span>
+      <strong>${escapeHtml(task.name)}</strong>
+      ${task.note ? `<p>${escapeHtml(task.note)}</p>` : ""}
+    </div>
+    ${groupsMarkup || `
+      <div class="task-launcher-empty">
+        <strong>연결된 자료가 없습니다.</strong>
+        <p>아카이브에서 파일, 폴더, URL을 이 할 일에 연결하면 여기서 바로 열 수 있습니다.</p>
+        <button type="button" id="taskLauncherGoArchive">아카이브로 이동</button>
+      </div>
+    `}
   `;
 }
 
@@ -713,26 +782,18 @@ export function taskCardMarkup(task, showProject = false) {
 
   const archiveLinks = (state.archiveResourceLinks || [])
     .filter(link => link.targetType === "task" && Number(link.targetId) === Number(task.id));
-  const badgesMarkup = archiveLinks.map(link => {
-    const archiveNode = (state.archiveResources || []).find(n => n.id === Number(link.resourceId));
-    if (!archiveNode) return "";
-    let icon = "📄";
-    if (archiveNode.type === "folder") icon = "📁";
-    if (archiveNode.type === "link") icon = "🔗";
-    return `
-      <button type="button" class="mini-archive-badge-btn" data-open-archive-path="${escapeHtml(archiveNode.path)}" data-archive-type="${archiveNode.type}" style="display: inline-flex; align-items: center; gap: 3px; border: 1px solid var(--border); border-radius: 4px; padding: 2px 5px; font-size: 8.5px; background: color-mix(in srgb, var(--accent) 6%, var(--surface)); color: var(--accent); cursor: pointer; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 4px; margin-right: 4px;">
-        ${icon} ${escapeHtml(archiveNode.name)}
-      </button>
-    `;
-  }).join("");
+  const archiveResourceCount = archiveLinks
+    .filter(link => (state.archiveResources || []).some(resource => Number(resource.id) === Number(link.resourceId)))
+    .length;
 
   return `
     <article class="task-card ${progress >= 100 ? "done" : ""} ${isFocused ? "focused" : ""}">
       <button class="task-card-main" data-open-note="${task.id}" aria-label="${escapeHtml(task.name)} 메모 열기">
         <strong>${escapeHtml(task.name)}</strong>
         <span>${escapeHtml(meta)}</span>
-        ${badgesMarkup ? `<div class="task-archive-badges" style="display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px;">${badgesMarkup}</div>` : ""}
+        ${archiveResourceCount ? `<span class="task-resource-summary">자료 ${archiveResourceCount}개</span>` : ""}
       </button>
+      <button class="task-launch-button" type="button" data-open-task-launcher="${task.id}" aria-label="${escapeHtml(task.name)} 작업 자료 열기">작업 열기</button>
       <button class="task-focus-button" type="button" data-focus-task="${task.id}" aria-pressed="${isFocused}" aria-label="${escapeHtml(task.name)} 집중 위젯 ${isFocused ? "해제" : "선택"}">${isFocused ? "집중중" : "집중"}</button>
       <button class="task-delete-button" type="button" data-delete-task="${task.id}" aria-label="${escapeHtml(task.name)} 삭제">×</button>
       ${metricTypes.includes("completion") ? `
