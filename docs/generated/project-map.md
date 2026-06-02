@@ -86,6 +86,9 @@ UI 마크업을 바꾸기 전 이 파일들을 확인합니다.
 
 - `README.md`: 새 harness 문서로 안내하는 프로젝트 진입점.
 - `gemini.md`: 기존 AI 작업 규칙의 호환 진입점. 현재 기준은 `AGENTS.md`.
+- `AGENTS.md`: 최상위 에이전트 작업 라우터. 작업 유형별로 필요한 역할 문서만 읽게 합니다.
+- `docs/HARNESS.md`: 하네스 라우팅, 역할, 트리거, 산출물 규칙.
+- `docs/agents/`: 역할별 에이전트 문서. UI, 상태 로직, 그래프, QA, 문서 작업의 읽기 범위와 검증 기준.
 - `docs/APP_STRUCTURE.md`: 구조 문서 호환 진입점. 현재 기준은 `FRONTEND.md`, `DATA_MODEL.md`, `PROJECT_LOGIC.md`.
 - `docs/DESIGN_SYSTEM.md`: 디자인 문서 호환 진입점. 현재 기준은 `DESIGN.md`.
 - `docs/DEPENDENCIES.md`: 의존성 문서. 현재 기준은 `package.json`, `package-lock.json`, `QUALITY_CHECK.md`.
@@ -118,5 +121,6 @@ UI 마크업을 바꾸기 전 이 파일들을 확인합니다.
 - 프로젝트/작업/진행도 로직: `docs/PROJECT_LOGIC.md`, `state.js`, `calculator.js`, `app-graph-actions.js`, 관련 테스트.
 - 아카이브 변경: `docs/DATA_MODEL.md`, `archive-model.js`, `ui-components.js`, 아카이브 테스트.
 - 그래프 변경: `graph-components.js`, `app-graph-events.js`, `app-graph-actions.js`, `graph.css`, `graph-interactions.css`, 그래프 테스트.
-- UI 변경: `docs/DESIGN.md`, `docs/FRONTEND.md`, `ui-components.js`, 관련 CSS.
+- UI 변경: `docs/HARNESS.md`, `docs/agents/ui-agent.md`, `docs/DESIGN.md`, `docs/FRONTEND.md`, `ui-components.js`, 관련 CSS.
+- 하네스/문서 구조 변경: `AGENTS.md`, `docs/HARNESS.md`, `docs/agents/docs-agent.md`, `docs/QUALITY_CHECK.md`.
 - Electron/import/export/focus widget: `main.js`, `preload.js`, `focus-widget.js`, `state.js`.

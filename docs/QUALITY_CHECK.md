@@ -10,7 +10,7 @@ npm test
 npm run dist
 ```
 
-현재 `lint`, `typecheck`, `build` 스크립트는 없습니다. 자동 회귀 확인은 `npm test`를 우선 사용합니다.
+현재 `lint`, `typecheck`, `build` 스크립트는 없습니다. 자동 회귀 확인은 `npm test`를 우선 사용하고, 배포 산출물 확인이 필요할 때만 `npm run dist`를 사용합니다.
 
 ## 테스트 명령
 
@@ -91,6 +91,7 @@ PowerShell 실행 정책 때문에 `npm test`가 막히면 `npm.cmd test`를 사
 
 ## 문서 업데이트 체크리스트
 
+- 하네스 라우팅이나 역할 문서 변경 후 `AGENTS.md`, `docs/HARNESS.md`, `docs/agents/*.md`의 연결을 확인합니다.
 - 모델 변경 후 `docs/DATA_MODEL.md`를 업데이트합니다.
 - 계층, 롤업, 상태, 링크 규칙 변경 후 `docs/PROJECT_LOGIC.md`를 업데이트합니다.
 - 파일 이동이나 화면/컴포넌트 경계 변경 후 `docs/FRONTEND.md`를 업데이트합니다.

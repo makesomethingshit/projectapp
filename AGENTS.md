@@ -2,56 +2,40 @@
 
 이 저장소는 로컬 Electron 기반 프로젝트 관리 앱입니다. 변경은 작게 유지하고, 추정한 내용은 반드시 표시하며, 사용자가 요청하지 않은 기능 구현이나 대규모 리디자인은 하지 않습니다.
 
-## 먼저 읽을 문서
+## 작업 라우팅
 
-- `docs/PRODUCT.md`: 제품 의도와 범위.
-- `docs/FRONTEND.md`: 앱 구조, 화면 구조, 컴포넌트, 스타일링 방식.
-- `docs/DATA_MODEL.md`: 저장되는 데이터와 원천 데이터.
-- `docs/PROJECT_LOGIC.md`: 프로젝트/작업/진행도/상태/그래프 로직.
-- `docs/DESIGN.md`: UI 변경 전 확인해야 할 디자인 원칙.
-- `docs/QUALITY_CHECK.md`: 변경 전후 확인 명령과 QA 목록.
-- `docs/generated/project-map.md`: 현재 저장소 파일 지도.
+모든 작업은 먼저 `docs/HARNESS.md`를 읽고 작업 유형을 고릅니다. 그다음 필요한 역할 문서와 기준 문서만 읽습니다. 토큰을 아끼기 위해 관련 없는 문서를 선독하지 않습니다.
+
+| 작업 유형 | 먼저 읽을 역할 문서 | 함께 읽을 기준 문서 |
+| --- | --- | --- |
+| 제품 범위, 요구 판단 | `docs/agents/docs-agent.md` | `docs/PRODUCT.md` |
+| UI, 문구, 화면, 스타일 | `docs/agents/ui-agent.md` | `docs/FRONTEND.md`, `docs/DESIGN.md` |
+| 프로젝트/작업/진행도/상태/저장 | `docs/agents/state-logic-agent.md` | `docs/DATA_MODEL.md`, `docs/PROJECT_LOGIC.md` |
+| 그래프 노드, 링크, 그래프 상호작용 | `docs/agents/graph-agent.md` | `docs/FRONTEND.md`, `docs/PROJECT_LOGIC.md` |
+| 검증, 테스트, 마무리 확인 | `docs/agents/qa-agent.md` | `docs/QUALITY_CHECK.md` |
+| 파일 위치 파악 | `docs/HARNESS.md` | `docs/generated/project-map.md` |
 
 기존 `README.md`, `gemini.md`, `docs/APP_STRUCTURE.md`, `docs/DESIGN_SYSTEM.md`, `docs/DEPENDENCIES.md`, `docs/codex.md`는 새 harness 문서로 이어지는 호환 문서입니다. 세부 판단은 위 기준 문서들을 우선합니다.
 
-## 핵심 로직 변경 전 확인
+## 공통 원칙
 
-프로젝트 계층, 작업 기여 방식, 완성도/진행도 롤업, 외부 영향 링크, 수식 노드, 아카이브 링크를 바꾸기 전에는 다음 파일을 확인합니다.
-
-- `state.js`
-- `calculator.js`
-- `app-graph-actions.js`
-- `app-graph-events.js`
-- `graph-components.js`
-- 관련 `test_*.mjs` 파일
-
-이 앱의 가장 큰 위험은 상태 불일치입니다. 가능하면 진행도와 상태는 파생값으로 계산하고, 중복 저장이 필요한 경우 그 이유를 문서에 남깁니다.
-
-## UI 변경 전 확인
-
-- `index.html`
-- `ui-components.js`
-- `graph-components.js`
-- `variables.css`
-- `layout.css`
-- `components.css`
-- `modals.css`
-- `graph.css`
-- `graph-interactions.css`
-
-기존 레이아웃, 토큰, 컴포넌트 패턴을 우선 재사용합니다. 명시 요청 없이 앱을 새로 디자인하지 않습니다.
+- 기존 구조, 토큰, 컴포넌트 패턴을 우선 재사용합니다.
+- 기능 추가, 버그 수정, 문서 정리는 가능한 한 섞지 않습니다.
+- 큰 리팩터링이나 앱 리디자인은 명시 요청 없이 진행하지 않습니다.
+- 파생 가능한 진행도와 상태는 계산값으로 다루고, 중복 저장이 필요하면 이유를 문서에 남깁니다.
+- 한국어 문구와 CSS `content` 문자열은 UTF-8 기준으로 관리합니다.
+- 파일을 추정해서 고치지 말고, 관련 역할 문서가 지정한 파일을 먼저 확인합니다.
 
 ## 확인 절차
 
-`docs/QUALITY_CHECK.md`에 적힌 명령과 체크리스트를 따릅니다. 단, 작업의 위험도에 따라 검증 깊이를 조절합니다.
+`docs/agents/qa-agent.md`와 `docs/QUALITY_CHECK.md`에 적힌 기준을 따릅니다. 작업 위험도에 따라 검증 깊이를 조절합니다.
 
-* 문서만 변경한 경우: 요청된 문서가 모두 존재하는지 확인하고, 앱 소스가 의도치 않게 변경되지 않았는지 diff로 확인합니다.
-* 사소한 UI, 문구, 스타일 변경: 관련 diff를 확인하고, 필요한 경우 lint를 실행합니다.
-* 컴포넌트, 상태 관리, 화면 흐름을 변경한 경우: lint, typecheck, 관련 테스트를 실행합니다.
-* 프로젝트 계층, 작업 기여 방식, 진행도/완성도 롤업, 상태 계산, 그래프 로직, 저장 로직을 변경한 경우: lint, typecheck, 관련 테스트, 전체 테스트, build를 실행합니다.
-* 검증을 생략한 경우에는 생략한 이유를 마무리 요약에 명시합니다.
-* 공유 로직이나 핵심 상태 시스템을 건드리지 않는 사소한 변경에는 비용이 큰 전체 검증을 실행하지 않습니다.
-* 항상 실행한 명령어와 통과/실패 여부를 마무리 요약에 포함합니다.
+- 문서만 변경한 경우: 요청된 문서가 존재하는지 확인하고, 앱 소스가 의도치 않게 변경되지 않았는지 diff로 확인합니다.
+- 사소한 UI, 문구, 스타일 변경: 관련 diff를 확인하고, 필요한 경우 `npm test` 또는 관련 개별 테스트를 실행합니다.
+- 컴포넌트, 상태 관리, 화면 흐름을 변경한 경우: 관련 테스트와 `npm test`를 실행합니다.
+- 프로젝트 계층, 작업 기여 방식, 진행도/완성도 롤업, 상태 계산, 그래프 로직, 저장 로직을 변경한 경우: 관련 테스트, `npm test`, 필요 시 `npm run dist`를 실행합니다.
+- 검증을 생략한 경우에는 생략한 이유를 마무리 요약에 명시합니다.
+- 항상 실행한 명령어와 통과/실패 여부를 마무리 요약에 포함합니다.
 
 ## 마무리 요약에 포함할 것
 
