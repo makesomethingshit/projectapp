@@ -14,6 +14,7 @@
   --page: var(--paper);
   --line: #ddd6c7;
   --line-strong: #c7bda8;
+  --border: var(--line);
   --text: var(--ink-blue);
   --muted: #6f6a5f;
   --quiet: #9a907e;

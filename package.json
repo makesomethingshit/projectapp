@@ -26,10 +26,15 @@
       "graph.css",
       "graph-interactions.css",
       "app.js",
+      "archive-graph-d3.js",
+      "archive-graph-model.js",
+      "archive-graph-3d.js",
+      "archive-embeddings.js",
       "app-graph-actions.js",
       "app-graph-events.js",
       "app-modals.js",
       "archive-model.js",
+      "archive-seed-sources.js",
       "detail-navigation.js",
       "graph-navigation.js",
       "graph-selection.js",
@@ -39,7 +44,13 @@
       "graph-components.js",
       "main.js",
       "preload.js",
-      "package.json"
+      "package.json",
+      "node_modules/d3/dist/d3.min.js",
+      "node_modules/three/build/three.module.js",
+      "node_modules/three/examples/jsm/controls/OrbitControls.js",
+      "node_modules/@huggingface/transformers/dist/transformers.web.min.js",
+      "node_modules/@huggingface/transformers/dist/ort-wasm-simd-threaded.jsep.wasm",
+      "node_modules/@huggingface/transformers/dist/ort-wasm-simd-threaded.jsep.mjs"
     ],
     "win": {
       "target": [
@@ -53,5 +64,10 @@
   "devDependencies": {
     "electron": "^31.0.0",
     "electron-builder": "^26.8.1"
+  },
+  "dependencies": {
+    "@huggingface/transformers": "^3.8.1",
+    "d3": "^7.9.0",
+    "three": "^0.184.0"
   }
 }

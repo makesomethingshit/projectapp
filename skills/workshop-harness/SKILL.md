@@ -11,6 +11,12 @@ Use this skill as the execution harness for the project. Keep `AGENTS.md` thin, 
 
 The existing `docs/*.md` files remain the source of truth. This skill decides which ones to read and when to create workflow artifacts.
 
+## Product North Stars
+
+- Structure map panel: aim for ComfyUI-level freedom in graph/node composition, linking, and spatial manipulation.
+- Archive: aim for an Obsidian-like personal knowledge/archive experience, where resources, notes, and context can accumulate and interlink.
+- Treat these as long-term product direction signals. Do not use them as permission for broad redesigns or unsolicited feature expansion.
+
 ## Quick Start
 
 1. Restate the user goal and success criteria.
@@ -21,6 +27,17 @@ The existing `docs/*.md` files remain the source of truth. This skill decides wh
 6. Apply risk gates from `references/risk-gates.md`.
 7. Verify using `references/verification.md` and the project `docs/QUALITY_CHECK.md`.
 8. Synthesize packet results; never paste raw worker output as the final answer.
+
+## Korean Text And Encoding Safety
+
+Treat Korean UI copy, document text, CSS `content`, HTML labels, and JavaScript template strings as encoding-risk work.
+
+- Before editing Korean text, prefer the safest edit path available for the file. Use `apply_patch` for small manual edits.
+- Do not write Korean strings through shell scripts, ad hoc Node scripts, or terminal-copied text unless you intentionally use UTF-8-safe escapes such as `\uXXXX` or HTML numeric entities.
+- Do not trust mojibake shown in the terminal as proof that the source is broken or safe. Inspect the actual source diff and run the relevant checks.
+- Never leave visibly corrupted Korean, replacement characters, or partial mojibake in user-facing strings.
+- After touching Korean UI text or CSS `content`, consider `node test_encoding_integrity.mjs`, `node --check <changed-js-file>`, and the narrowest markup/UI test that renders the changed string.
+- If the safest implementation uses HTML numeric entities or `\uXXXX` escapes, keep that choice local to user-facing text and document why when it is not obvious.
 
 ## When To Create A Workflow
 

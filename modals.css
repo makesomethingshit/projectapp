@@ -39,7 +39,21 @@
   width: min(560px, 100%);
 }
 
+.task-modal,
+.note-modal,
+.complete-modal,
+.delete-modal,
+.preferences-modal,
+.deadline-modal,
+.project-modal {
+  max-height: min(760px, calc(100vh - 48px));
+  min-width: 0;
+  overflow: auto;
+  scrollbar-width: thin;
+}
+
 .modal-section {
+  min-width: 0;
   display: grid;
   gap: 10px;
   border: 1px solid var(--line);
@@ -52,6 +66,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
   min-height: 18px;
 }
 
@@ -66,8 +82,14 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 18px;
+  min-width: 0;
   padding-bottom: 8px;
   border-bottom: 1px solid var(--line);
+}
+
+.modal-head > div,
+.modal-head h2 {
+  min-width: 0;
 }
 
 .modal-head span,
@@ -79,6 +101,7 @@
 }
 
 .modal-head h2 {
+  overflow-wrap: anywhere;
   margin: 5px 0 0;
   font-size: 19px;
   line-height: 1.2;
@@ -324,7 +347,7 @@
 
 .modal-grid {
   display: grid;
-  grid-template-columns: 1fr 140px;
+  grid-template-columns: minmax(0, 1fr) 140px;
   gap: 10px;
 }
 
@@ -358,7 +381,7 @@
 }
 
 .external-link-row {
-  grid-template-columns: minmax(0, 1fr) 92px 92px 24px;
+  grid-template-columns: minmax(0, 1fr) minmax(78px, 92px) minmax(78px, 92px) 24px;
   align-items: center;
 }
 
@@ -388,6 +411,7 @@
 
 .modal-actions {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: 8px;
   padding-top: 4px;
@@ -421,15 +445,39 @@
 }
 
 @media (max-width: 640px) {
+  .modal-backdrop {
+    padding: 16px;
+  }
+
   .note-modal {
     width: min(100%, 520px);
     max-height: calc(100vh - 32px);
     overflow: auto;
   }
 
+  .task-modal,
+  .complete-modal,
+  .delete-modal,
+  .preferences-modal,
+  .deadline-modal,
+  .project-modal {
+    max-height: calc(100vh - 32px);
+  }
+
   .note-meta-panel,
-  .note-progress-grid {
+  .note-progress-grid,
+  .modal-grid,
+  .external-link-row,
+  .setting-row {
     grid-template-columns: 1fr;
+  }
+
+  .modal-actions {
+    justify-content: stretch;
+  }
+
+  .modal-actions button {
+    flex: 1 1 140px;
   }
 
   .note-editor textarea {

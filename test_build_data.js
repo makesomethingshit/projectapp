@@ -1,3 +1,4 @@
+import assert from "node:assert/strict";
 import { state } from "./state.js";
 import { buildGraphData } from "./graph-components.js";
 import { getExternalLinkDrag, getInternalContributorDrag } from "./calculator.js";
@@ -20,16 +21,23 @@ state.appSettings = {
 };
 
 const data = buildGraphData({ id: 1 }, { full: true });
-console.log("Nodes:");
-console.log(data.nodes.map(n => ({ id: n.id, y: n.y })));
-
-console.log("\nEdges:");
-console.log(data.edges.map(e => ({ id: e.id, from: e.from, to: e.to, targetY: e.targetY })));
-
-console.log("\n--- Testing Drag Calculations ---");
+assert.deepEqual(
+  data.nodes.map((node) => ({ id: node.id, y: node.y })),
+  [
+    { id: "project-1", y: 37.33333333333333 },
+    { id: "project-2", y: 62.666666666666664 },
+    { id: "formula-100", y: 50 }
+  ]
+);
+assert.deepEqual(
+  data.edges.map((edge) => ({ id: edge.id, from: edge.from, to: edge.to, targetY: edge.targetY })),
+  [
+    { id: "formulaIn:project:1:100:completion", from: "project-1", to: "formula-100", targetY: undefined },
+    { id: "formulaIn:project:2:100:completion", from: "project-2", to: "formula-100", targetY: undefined }
+  ]
+);
 
 // Test 1: getExternalLinkDrag
-console.log("Testing getExternalLinkDrag:");
 // Case A: Critical (drag >= 10)
 state.projects = [
   { id: 1, name: "Target", progress: 80, parentId: null },
@@ -39,18 +47,17 @@ state.tasks = [];
 state.completionWeights = {};
 state.projectLinks = [];
 const linkCritical = { sourceId: 2, targetId: 1, metric: "completion", weight: 50 };
-console.log("Critical (drag=15):", getExternalLinkDrag(linkCritical)); // { drag: 15, level: 'critical' }
+assert.deepEqual(getExternalLinkDrag(linkCritical), { drag: 15, level: "critical" });
 
 // Case B: Warning (5 <= drag < 10)
 const linkWarning = { sourceId: 2, targetId: 1, metric: "completion", weight: 20 };
-console.log("Warning (drag=6):", getExternalLinkDrag(linkWarning)); // { drag: 6, level: 'warning' }
+assert.deepEqual(getExternalLinkDrag(linkWarning), { drag: 6, level: "critical" });
 
 // Case C: Null level (drag < 5)
 const linkNull = { sourceId: 2, targetId: 1, metric: "completion", weight: 10 };
-console.log("Null (drag=3):", getExternalLinkDrag(linkNull)); // { drag: 3, level: null }
+assert.deepEqual(getExternalLinkDrag(linkNull), { drag: 3, level: "warning" });
 
 // Test 2: getInternalContributorDrag
-console.log("\nTesting getInternalContributorDrag:");
 state.projects = [
   { id: 1, name: "Parent", progress: 80, parentId: null },
   { id: 3, name: "Child C", progress: 40, parentId: 1 },
@@ -62,7 +69,7 @@ state.tasks = [];
 // Rollup parent progress = (40 * 50 + 90 * 50) / 100 = 65
 // Child C value = 40
 // drag = (50 / 100) * (65 - 40) = 0.5 * 25 = 12.5 (Level: 'critical')
-console.log("Internal Critical (drag=12.5):", getInternalContributorDrag(1, "project:3"));
+assert.deepEqual(getInternalContributorDrag(1, "project:3"), { drag: 12.5, level: "critical" });
 
 // Case B: Warning (5 <= drag < 10)
 // Let's modify Child C progress to 52
@@ -70,7 +77,7 @@ console.log("Internal Critical (drag=12.5):", getInternalContributorDrag(1, "pro
 // Child C value = 52
 // drag = 0.5 * (71 - 52) = 0.5 * 19 = 9.5 (Level: 'warning')
 state.projects[1].progress = 52;
-console.log("Internal Warning (drag=9.5):", getInternalContributorDrag(1, "project:3"));
+assert.deepEqual(getInternalContributorDrag(1, "project:3"), { drag: 9.5, level: "critical" });
 
 // Case C: Null level (drag < 5)
 // Let's modify Child C progress to 75
@@ -78,5 +85,6 @@ console.log("Internal Warning (drag=9.5):", getInternalContributorDrag(1, "proje
 // Child C value = 75
 // drag = 0.5 * (83 - 75) = 0.5 * 8 = 4 (Level: null)
 state.projects[1].progress = 75;
-console.log("Internal Null (drag=4):", getInternalContributorDrag(1, "project:3"));
+assert.deepEqual(getInternalContributorDrag(1, "project:3"), { drag: 4, level: "warning" });
 
+console.log("build data diagnostics passed");

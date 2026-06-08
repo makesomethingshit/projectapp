@@ -22,7 +22,7 @@
         <nav class="view-tab-nav" id="viewTabNav" aria-label="뷰 전환">
           <button type="button" id="viewTabDetail" data-main-view="detail">상세</button>
           <button type="button" id="viewTabGraph" data-main-view="graph">구조 지도</button>
-          <button type="button" id="viewTabArchive" data-main-view="archive">아카이브</button>
+          <button type="button" id="viewTabArchive" data-main-view="archive">Space</button>
         </nav>
         <div class="file-menu" id="fileMenu" hidden>
           <button type="button" id="exportDataButton">내보내기</button>
@@ -450,6 +450,16 @@
       </div>
     </main>
 
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "./node_modules/three/build/three.module.js",
+          "@huggingface/transformers": "./node_modules/@huggingface/transformers/dist/transformers.web.min.js"
+        }
+      }
+    </script>
+    <script src="./node_modules/d3/dist/d3.min.js"></script>
+    <script type="module" src="./archive-graph-3d.js"></script>
     <script type="module" src="./app.js"></script>
   </body>
 </html>

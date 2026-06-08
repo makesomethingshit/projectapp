@@ -1,4 +1,6 @@
-# 하네스 라우팅
+# 하네스 라우팅 (사람용 참조)
+
+**⚠️ 에이전트는 이 파일을 읽지 않습니다. `AGENTS.md`를 참조하세요.**
 
 이 문서는 미래 에이전트가 매번 모든 문서를 읽지 않도록 작업을 역할별로 나누는 사람용 개요입니다. 실행 절차는 `skills/workshop-harness/SKILL.md`가 우선하고, 이 문서는 기존 기준 문서와 역할 문서의 관계를 설명합니다.
 
@@ -50,3 +52,11 @@
 - 상태 로직 작업 중 화면 디자인을 새로 만들지 않습니다.
 - 그래프 링크와 프로젝트 계층을 같은 개념으로 취급하지 않습니다.
 - `node_modules`, `dist`, `backup`, `data`, `.codegraph`, `.superpowers`, `.codex-skill-repos`는 명시 요청 없이 수정하지 않습니다.
+## Archive Auto-Link Contract
+
+- 아카이브는 agent-readable Second Brain으로 관리한다. 사람 눈에 보이는 저장 위치보다 자료 간 관계와 현재 프로젝트와의 내용 관계가 우선이다.
+- 자동 연결은 `archiveResourceLinks`에 추가하되, 기존 수동 연결을 지우거나 덮어쓰지 않는다.
+- 연결 기준은 내용 중심이다. 자료의 이름, 설명, 명시적 내용 태그와 프로젝트/작업의 이름, 메모를 비교한다.
+- 저장 위치, 드라이브명, 파일 타입, 관리용 태그는 관계 기준에서 제외한다. 예: `g-drive`, `d-drive`, `reference-library`, `folder`, `file`, `pdf`, `docx`, `gpt`, `external`, `indexed`.
+- 같은 폴더 안에서 관련 파일 후보가 3개 이상이면 파일들을 각각 연결하지 않고, 가능한 경우 해당 폴더 아카이브 리소스를 대표로 연결한다.
+- 이 규칙을 바꾸는 작업은 State Logic Agent와 Graph Agent 경계 작업으로 본다. 구현 뒤에는 `test_archive_auto_links.mjs`와 `npm test`를 통과시킨다.

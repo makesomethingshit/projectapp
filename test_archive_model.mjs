@@ -47,8 +47,24 @@ assert.deepEqual(
     [{ id: 1 }, { id: 2 }]
   ),
   [
-    { resourceId: 1, targetType: "project", targetId: 10 },
-    { resourceId: 2, targetType: "task", targetId: 99 }
+    {
+      resourceId: 1,
+      targetType: "project",
+      targetId: 10,
+      relationStatus: "confirmed",
+      relationType: "reference",
+      relationStrength: "medium",
+      relationScore: null
+    },
+    {
+      resourceId: 2,
+      targetType: "task",
+      targetId: 99,
+      relationStatus: "confirmed",
+      relationType: "reference",
+      relationStrength: "medium",
+      relationScore: null
+    }
   ]
 );
 

@@ -2,6 +2,9 @@ import {
   state,
   loadState,
   saveState,
+  ensureDefaultArchiveSources,
+  ensureDesignSiteTaskLink,
+  applyAutomaticArchiveLinks,
   createId,
   normalizeProjects,
   normalizeTasks,
@@ -49,7 +52,6 @@ import {
   workFlowSummaryMarkup,
   renderImpactTrail,
   renderExternalInfluence,
-  renderLinkedArchivePanel,
   taskCardMarkup,
   taskSectionMarkup,
   metricBadgesMarkup,
@@ -68,6 +70,18 @@ import {
   graphProjectCardMarkup,
   renderGraphView
 } from "./graph-components.js";
+
+import {
+  initArchiveGraphD3
+} from "./archive-graph-d3.js";
+
+import {
+  initArchiveGraph3D
+} from "./archive-graph-3d.js";
+
+import {
+  ensureArchiveSemanticEmbeddings
+} from "./archive-embeddings.js";
 
 import {
   openTaskModal,
@@ -125,6 +139,7 @@ const fileMenu = $("#fileMenu");
 const archiveFullView = $("#archiveFullView");
 const archiveFullContent = $("#archiveFullContent");
 const pinToggle = $("#pinToggle");
+let archiveEmbeddingRefreshPromise = null;
 const preferencesPinInput = $("#preferencesPinInput");
 const weightSliderPopup = $("#weightSliderPopup");
 const weightSliderInput = $("#weightSliderInput");
@@ -137,7 +152,7 @@ const projectModal = $("#projectModal");
 const taskModal = $("#taskModal");
 const noteModal = $("#noteModal");
 
-let lastGlobalGraphState = null;
+let lastWorkspaceWindowMode = null;
 
 // ── UI STATE & RENDER FUNCTIONS ────────────────────────────────────────
 
@@ -174,11 +189,14 @@ export function applyPanelState() {
     });
   }
 
-  if (lastGlobalGraphState !== isGlobalGraph) {
-    lastGlobalGraphState = isGlobalGraph;
+  const windowMode = isGlobalGraph ? "graph" : isArchive ? "archive" : "detail";
+  if (lastWorkspaceWindowMode !== windowMode) {
+    lastWorkspaceWindowMode = windowMode;
     if (window.workshopApp?.setWindowSize) {
       if (isGlobalGraph) {
-        window.workshopApp.setWindowSize(1720, 980);
+        window.workshopApp.setWindowSize(1400, 900);
+      } else if (isArchive) {
+        window.workshopApp.setWindowSize(1360, 900);
       } else {
         window.workshopApp.setWindowSize(1120, 820);
       }
@@ -231,6 +249,20 @@ export function shouldRevealChildren(project, hasFilteredDescendant) {
     || (state.projectFilter !== "all" && hasFilteredDescendant);
 }
 
+export function syncProjectListExpansion(projectId = state.selectedProjectId) {
+  const selectedProject = getProject(projectId);
+  if (!selectedProject) {
+    state.expandedProjectIds = new Set();
+    return;
+  }
+
+  const nextExpandedIds = new Set(getAncestorIds(selectedProject.id));
+  if (getChildProjects(selectedProject.id).length) {
+    nextExpandedIds.add(selectedProject.id);
+  }
+  state.expandedProjectIds = nextExpandedIds;
+}
+
 export function getVisibleProjectRows() {
   const rows = [];
   const visited = new Set();
@@ -249,12 +281,19 @@ export function getVisibleProjectRows() {
   }
 
   walk(null, 0);
-  state.projects.filter((project) => !visited.has(project.id)).forEach((project) => rows.push({ project, depth: 0, contextual: false }));
+  const projectIds = new Set(state.projects.map((project) => project.id));
+  state.projects
+    .filter((project) => !visited.has(project.id))
+    .filter((project) => {
+      const parentId = project.parentId === undefined || project.parentId === null ? null : Number(project.parentId);
+      return parentId !== null && !projectIds.has(parentId);
+    })
+    .forEach((project) => rows.push({ project, depth: 0, contextual: false }));
   return rows;
 }
 
 export function renderProjectList() {
-  revealProjectPath(state.selectedProjectId);
+  syncProjectListExpansion(state.selectedProjectId);
   const rows = getVisibleProjectRows();
   projectList.innerHTML = rows.map(({ project, depth, contextual }) => {
     const projectTasks = getProjectTasks(project.id, true);
@@ -316,14 +355,30 @@ export function scheduleGraphViewportUpdate() {
   });
 }
 
-function syncRenderedGraphNow() {
-  syncGraphPortEdges(projectDetail);
-  updateGraphMinimapViewport();
-}
-
 let lastDetailedProjectId = null;
 
 export function renderProjectDetail() {
+  if (state.viewMode === "archive") {
+    const allResources = state.archiveResources || [];
+    if (allResources.length > 0) {
+      const isSelectedValid = allResources.some((resource) => Number(resource.id) === Number(state.selectedArchiveResourceId));
+      if (!isSelectedValid) {
+        state.selectedArchiveResourceId = allResources[0].id;
+      }
+    } else {
+      state.selectedArchiveResourceId = null;
+    }
+
+    if (archiveFullContent) {
+      archiveFullContent.innerHTML = renderArchiveView();
+      requestAnimationFrame(() => {
+        initArchiveGraphD3();
+        initArchiveGraph3D();
+      });
+    }
+    return;
+  }
+
   const project = getProject(state.selectedProjectId);
   if (!project) {
     projectDetail.innerHTML = '<p class="notice">프로젝트가 없습니다. 새 프로젝트를 추가해 주세요.</p>';
@@ -339,7 +394,6 @@ export function renderProjectDetail() {
   if (state.appSettings.globalGraphView === true) {
     const isLocalScope = state.appSettings.graphScope === "local";
     projectDetail.innerHTML = renderGraphView(project, { full: !isLocalScope, includeTasks: true });
-    syncRenderedGraphNow();
     if (scrollLeft !== null || scrollTop !== null) {
       requestAnimationFrame(() => {
         const nextStage = document.querySelector(".graph-stage");
@@ -355,19 +409,8 @@ export function renderProjectDetail() {
     return;
   }
 
-  if (state.viewMode === "archive") {
-    // 아카이브는 별도 전체 뷰에 렌더링
-    const archiveFullContentEl = document.getElementById("archiveFullContent");
-    if (archiveFullContentEl) {
-      archiveFullContentEl.innerHTML = renderArchiveView(project);
-      scanArchivePaths(document.getElementById("archiveFullView"));
-    }
-    return;
-  }
-
   if (state.viewMode === "graph") {
     projectDetail.innerHTML = `${renderDetailHeader(project)}${renderGraphView(project)}`;
-    syncRenderedGraphNow();
     if (scrollLeft !== null || scrollTop !== null) {
       requestAnimationFrame(() => {
         const nextStage = document.querySelector(".graph-stage");
@@ -441,8 +484,6 @@ export function renderProjectDetail() {
 
     ${renderExternalInfluence(project)}
 
-    ${renderLinkedArchivePanel(project, allTasks)}
-
     ${renderChildProjects(project)}
 
     <section class="next-action">
@@ -465,7 +506,6 @@ export function renderProjectDetail() {
 
     <div class="task-board">${taskListMarkup}</div>
   `;
-  scanArchivePaths(document.getElementById("projectDetailPanel") || document.getElementById("projectDetail"));
 }
 
 export function renderSearch() {
@@ -497,8 +537,8 @@ export function graphPointFromEvent(canvas, event) {
   const clientX = event.clientX;
   const clientY = event.clientY;
   return {
-    x: Math.max(0, Math.min(1000, ((clientX - rect.left) / rect.width) * 100)),
-    y: Math.max(0, Math.min(1000, ((clientY - rect.top) / rect.height) * 100))
+    x: Math.max(0, Math.min(100, ((clientX - rect.left) / rect.width) * 100)),
+    y: Math.max(0, Math.min(100, ((clientY - rect.top) / rect.height) * 100))
   };
 }
 
@@ -519,71 +559,18 @@ export function graphBezierMidpoint(from, to) {
   };
 }
 
-function graphOrthogonalPath(fromX, fromY, toX, toY, edge) {
-  if (edge?.type !== "task" && toX < fromX) {
-    const routeX = Math.min(100, Math.max(fromX, toX) + 6);
-    return `M ${fromX} ${fromY} H ${routeX} V ${toY} H ${toX}`;
-  }
-  const midX = fromX + (toX - fromX) * (edge?.type === "task" ? 0.68 : 0.52);
-  return `M ${fromX} ${fromY} H ${midX} V ${toY} H ${toX}`;
-}
-
-function graphNodeSelector(graphNodeId) {
-  const [type, rawId] = String(graphNodeId || "").split("-");
-  if (!type || !rawId) return "";
-  if (type === "project") return `[data-graph-project-node="${rawId}"]`;
-  if (type === "task") return `[data-graph-task-node="${rawId}"], [data-open-note="${rawId}"], [data-graph-drag-task="${rawId}"]`;
-  if (type === "memo" || type === "formula" || type === "archive") return `[data-graph-free-node="${type}:${rawId}"]`;
-  return "";
-}
-
-const GRAPH_PORT_FALLBACK_X_OFFSET = 4.8;
-const GRAPH_PORT_FALLBACK_Y_OFFSETS = {
-  completion: -0.58,
-  advance: 0.58,
-  archive: 1.74
-};
-const GRAPH_GROUP_HEADER_PORT_FALLBACK_Y = {
-  completion: -3.4,
-  advance: -2.55,
-  archive: -1.7
-};
-
-export function findGraphPort(canvas, targetId, direction, metric, type = "project", sourceId = null, sourceType = null, ownerGraphNodeId = null) {
+export function findGraphPort(canvas, targetId, direction, metric, type = "project", sourceId = null, sourceType = null) {
   let selector = `[data-graph-port-role="${direction === "out" ? "source" : "target"}"][data-graph-port-id="${targetId}"][data-graph-port-metric="${metric}"][data-graph-port-type="${type}"]`;
   if (direction === "in" && type === "formula" && sourceId !== null && sourceType !== null) {
     selector = `[data-graph-port-role="target"][data-graph-port-id="${targetId}"][data-graph-port-metric="${metric}"][data-graph-port-type="formula"][data-graph-connect-source-id="${sourceId}"][data-graph-connect-source-type="${sourceType}"]`;
   }
-  const ownerSelector = graphNodeSelector(ownerGraphNodeId);
-  const ownerEl = ownerSelector ? canvas.querySelector(ownerSelector) : null;
-  const el = ownerEl?.querySelector(selector) || canvas.querySelector(selector);
-  if (el) {
-    const rect = el.getBoundingClientRect();
-    if (rect.width > 0 && rect.height > 0) {
-      const pt = graphPointFromElement(canvas, el);
-      if (pt) pt.isReal = true;
-      return pt;
-    }
-  }
-  const nodeSelector = type === "memo" || type === "formula" || type === "archive"
-    ? `[data-graph-free-node="${type}:${targetId}"]`
-    : type === "task"
-      ? `[data-graph-task-node="${targetId}"], [data-open-note="${targetId}"], [data-graph-drag-task="${targetId}"]`
-      : `[data-graph-${type}-node="${targetId}"]`;
-  const nodeEl = ownerEl?.matches?.(nodeSelector) ? ownerEl : ownerEl?.querySelector?.(nodeSelector) || canvas.querySelector(nodeSelector);
+  const el = canvas.querySelector(selector);
+  if (el) return graphPointFromElement(canvas, el);
+  const nodeEl = canvas.querySelector(`[data-graph-${type}-node="${targetId}"]`);
   if (nodeEl) {
     const x = Number.parseFloat(nodeEl.style.getPropertyValue("--x")) || 50;
     const y = Number.parseFloat(nodeEl.style.getPropertyValue("--y")) || 50;
-    const xOffset = direction === "out" ? GRAPH_PORT_FALLBACK_X_OFFSET : -GRAPH_PORT_FALLBACK_X_OFFSET;
-    const isOwnProjectPort = type === "project"
-      && ownerGraphNodeId === `project-${targetId}`;
-    const yOffset = isOwnProjectPort
-      ? (GRAPH_GROUP_HEADER_PORT_FALLBACK_Y[metric] ?? GRAPH_GROUP_HEADER_PORT_FALLBACK_Y.completion)
-      : (GRAPH_PORT_FALLBACK_Y_OFFSETS[metric] ?? 0);
-    return {
-      x: Math.max(0, Math.min(100, x + xOffset)),
-      y: Math.max(0, Math.min(100, y + yOffset))
-    };
+    return { x, y: y + (direction === "out" ? 2 : -2) };
   }
   return null;
 }
@@ -596,8 +583,11 @@ export function setGraphPortConnectionState(portEl, active) {
 }
 
 export function syncGraphPortEdges(view = document) {
-  const canvas = view?.matches?.(".graph-canvas") ? view : view?.querySelector?.(".graph-canvas");
+  const canvas = view.querySelector(".graph-canvas");
   if (!canvas) return;
+  const stage = view.querySelector(".graph-stage");
+  const zoom = clampGraphZoom(state.appSettings.graphZoom);
+  const nodeScale = clampGraphNodeScale(state.appSettings.graphNodeScale);
   
   const isFull = state.appSettings.globalGraphView === true && state.viewMode !== "archive" && state.appSettings.graphScope !== "local";
   const edges = buildGraphData(getProject(state.selectedProjectId), { full: isFull }).edges;
@@ -607,25 +597,31 @@ export function syncGraphPortEdges(view = document) {
     if (!edgePath) return;
     const isFormulaIn = edge.linkKind === "formulaIn";
     const fromPort = isFormulaIn
-      ? findGraphPort(canvas, edge.sourceId, "out", edge.metric, edge.sourceType, null, null, edge.from)
-      : findGraphPort(canvas, edge.sourceId, "out", edge.metric || "completion", edge.sourceType || "project", null, null, edge.from);
-    const archiveTargetPortType = edge.linkKind === "archiveLink" && edge.targetType === "project" ? "archiveProject" : edge.targetType;
-    const archiveTargetMetric = edge.linkKind === "archiveLink" ? "archive" : "completion";
+      ? findGraphPort(canvas, edge.sourceId, "out", edge.metric, edge.sourceType)
+      : findGraphPort(canvas, edge.sourceId, "out", edge.metric || "completion", edge.sourceType || "project");
     const toPort = isFormulaIn
-      ? findGraphPort(canvas, edge.targetId, "in", edge.metric, "formula", edge.sourceId, edge.sourceType, edge.to)
+      ? findGraphPort(canvas, edge.targetId, "in", edge.metric, "formula", edge.sourceId, edge.sourceType)
       : edge.linkKind === "archiveLink"
-        ? findGraphPort(canvas, edge.targetId, "in", archiveTargetMetric, archiveTargetPortType, null, null, edge.to)
-        : findGraphPort(canvas, edge.targetId, "in", edge.metric || "completion", "project", null, null, edge.to);
+        ? findGraphPort(canvas, edge.targetId, "in", "completion", edge.targetType)
+        : findGraphPort(canvas, edge.targetId, "in", edge.metric || "completion", "project");
     if (!fromPort || !toPort) return;
     
     // 포트 위치 offset 보정
-    const fromX = fromPort.x;
-    const fromY = fromPort.isReal ? fromPort.y : (edge.sourcePortY ?? fromPort.y);
-    const toX = toPort.x;
-    const toY = toPort.isReal ? toPort.y : (edge.targetPortY ?? toPort.y);
-    
-    edgePath.setAttribute("d", graphOrthogonalPath(fromX, fromY, toX, toY, edge));
-    
+    let fromOffset = { x: 0, y: 0 };
+    let toOffset = { x: 0, y: 0 };
+    if (edge.sourceType === "formula" && !isFormulaIn) {
+      fromOffset.x = 4.8 * zoom * nodeScale;
+      fromOffset.y = (edge.metric === "advance" ? 1.0 : -1.0) * zoom * nodeScale;
+    }
+
+    const fromX = fromPort.x + fromOffset.x;
+    const fromY = fromPort.y + fromOffset.y;
+    const toX = toPort.x + toOffset.x;
+    const toY = toPort.y + toOffset.y;
+
+    const midX = fromX + (toX - fromX) * (edge.type === "task" ? 0.68 : 0.52);
+    edgePath.setAttribute("d", `M ${fromX} ${fromY} H ${midX} V ${toY} H ${toX}`);
+
     // 연결선 끊기 버튼과 가중치 배지 위치 동적 갱신
     const edgeControl = canvas.querySelector(`[data-graph-edge-control="${edge.id}"]`);
     if (edgeControl) {
@@ -635,9 +631,7 @@ export function syncGraphPortEdges(view = document) {
     }
     const weightBadge = canvas.querySelector(`[data-graph-edge-weight="${edge.id}"]`);
     if (weightBadge) {
-      const mid = edge.type === "external"
-        ? { x: fromX + (toX - fromX) * 0.52, y: (fromY + toY) / 2 }
-        : graphBezierMidpoint({ x: fromX, y: fromY }, { x: toX, y: toY });
+      const mid = graphBezierMidpoint({ x: fromX, y: fromY }, { x: toX, y: toY });
       weightBadge.style.setProperty("--x", `${mid.x}%`);
       weightBadge.style.setProperty("--y", `${mid.y}%`);
     }
@@ -720,8 +714,8 @@ export function finishGraphTaskDrop(event) {
     } else if (!targetProjectId && event.altKey) {
       // 복사 기능 지원
       const rect = canvas.getBoundingClientRect();
-      const x = Math.max(8, Math.min(1000, ((event.clientX - rect.left) / rect.width) * 100));
-      const y = Math.max(8, Math.min(1000, ((event.clientY - rect.top) / rect.height) * 100));
+      const x = Math.max(8, Math.min(92, ((event.clientX - rect.left) / rect.width) * 100));
+      const y = Math.max(8, Math.min(92, ((event.clientY - rect.top) / rect.height) * 100));
       
       const copyId = createId(state.tasks);
       state.tasks = [{
@@ -742,8 +736,8 @@ export function finishGraphTaskDrop(event) {
     } else if (!targetProjectId) {
       // 독립 할 일로 이동
       const rect = canvas.getBoundingClientRect();
-      const x = Math.max(8, Math.min(1000, ((event.clientX - rect.left) / rect.width) * 100));
-      const y = Math.max(8, Math.min(1000, ((event.clientY - rect.top) / rect.height) * 100));
+      const x = Math.max(8, Math.min(92, ((event.clientX - rect.left) / rect.width) * 100));
+      const y = Math.max(8, Math.min(92, ((event.clientY - rect.top) / rect.height) * 100));
       
       task.projectId = null;
       state.appSettings.graphTaskPositions = state.appSettings.graphTaskPositions || {};
@@ -1144,11 +1138,35 @@ export function closeBottleneckPopover() {
 // ── CORE RENDER ──
 
 export function render() {
+  ensureDefaultArchiveSources();
+  ensureDesignSiteTaskLink();
+  syncProjectListExpansion(state.selectedProjectId);
   saveState();
   applyPanelState();
   renderSearch();
   renderProjectList();
   renderProjectDetail();
+}
+
+export function scheduleArchiveEmbeddingRefresh(reason = "archive") {
+  if (archiveEmbeddingRefreshPromise) return archiveEmbeddingRefreshPromise;
+  archiveEmbeddingRefreshPromise = ensureArchiveSemanticEmbeddings(state, { limit: 24 })
+    .then((result) => {
+      archiveEmbeddingRefreshPromise = null;
+      if (!result.computed) return result;
+      applyAutomaticArchiveLinks();
+      saveState();
+      if (state.viewMode === "archive" || state.appSettings.archiveViewMode === "graph") {
+        renderProjectDetail();
+      }
+      return result;
+    })
+    .catch((error) => {
+      archiveEmbeddingRefreshPromise = null;
+      console.warn(`Archive semantic embedding refresh failed (${reason})`, error);
+      return { computed: 0, error };
+    });
+  return archiveEmbeddingRefreshPromise;
 }
 
 window.updateTaskFromFocusWidget = (taskId, patch = {}) => {
@@ -1176,6 +1194,9 @@ applyPanelState();
 render();
 syncPinState();
 initEvents();
+if (state.viewMode === "archive" && state.appSettings.archiveViewMode === "graph") {
+  scheduleArchiveEmbeddingRefresh("startup-archive-graph");
+}
 
 export async function openResource(path, type) {
   if (window.workshopApp?.openResource) {
@@ -1212,6 +1233,7 @@ export function addArchiveResource(name, type, path, desc = "", linkTarget = nul
     });
   }
   state.graphNotice = `"${name}" 리소스를 추가했습니다.`;
+  scheduleArchiveEmbeddingRefresh("archive-resource-added");
   saveState();
   render();
   return id;
@@ -1234,6 +1256,7 @@ export function updateArchiveResource(resourceId, patch) {
   const result = updateArchiveResourceModel(state.archiveResources || [], resourceId, patch);
   if (!result.updated) return false;
   state.archiveResources = result.resources;
+  scheduleArchiveEmbeddingRefresh("archive-resource-updated");
   state.graphNotice = `"${result.updated.name}" 리소스를 수정했습니다.`;
   saveState();
   render();
@@ -1275,7 +1298,7 @@ export function createGraphArchiveNode(point, resourceId = null) {
   let path = "C:\\";
 
   if (resourceId !== null) {
-    const mappedRes = (state.archiveResources || []).find((r) => r.id === Number(resourceId));
+    const mappedRes = (state.archiveResources || []).find((resource) => resource.id === Number(resourceId));
     if (mappedRes) {
       title = mappedRes.name;
       type = mappedRes.type;
@@ -1295,29 +1318,4 @@ export function createGraphArchiveNode(point, resourceId = null) {
   state.graphNotice = "아카이브 노드를 생성했습니다.";
   saveState();
   renderProjectDetail();
-}
-
-export async function scanArchivePaths(container = document) {
-  if (!container) return;
-  const items = container.querySelectorAll(".js-archive-item");
-  if (items.length === 0) return;
-
-  const promises = Array.from(items).map(async (item) => {
-    const filePath = item.getAttribute("data-resource-path");
-    if (!filePath) return;
-    try {
-      if (window.workshopApp && typeof window.workshopApp.checkPathExists === "function") {
-        const exists = await window.workshopApp.checkPathExists(filePath);
-        if (exists === false) {
-          item.classList.add("is-missing");
-        } else {
-          item.classList.remove("is-missing");
-        }
-      }
-    } catch (error) {
-      console.error("Failed to check path existence:", filePath, error);
-    }
-  });
-
-  await Promise.all(promises);
 }

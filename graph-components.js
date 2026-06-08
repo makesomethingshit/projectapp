@@ -240,6 +240,11 @@ export function buildGraphData(selectedProject, options = {}) {
   });
 
   const nodes = [...projectNodes, ...visibleTasks, ...freeTasks, ...memoNodes, ...formulaNodes, ...archiveNodes];
+  const getGraphNodeId = (type, id) => {
+    if (type === "formula") return `formula-${id}`;
+    if (type === "archive") return `archive-${id}`;
+    return `project-${id}`;
+  };
   const getVisibleAncestorId = (projectId) => {
     let currentId = Number(projectId);
     const seen = new Set();
@@ -274,6 +279,34 @@ export function buildGraphData(selectedProject, options = {}) {
       type: "external",
       metric: "archive",
       linkKind: "archiveLink",
+      external: true,
+      removable: true
+    };
+  }).filter(Boolean);
+
+  const customPortEdges = (state.appSettings.graphCustomPortLinks || []).map((link) => {
+    const sourceNodeId = link.sourceType === "project"
+      ? getVisibleAncestorId(link.sourceId)
+      : link.sourceId;
+    const targetNodeId = link.targetType === "project"
+      ? getVisibleAncestorId(link.targetId)
+      : link.targetId;
+    const from = sourceNodeId ? getGraphNodeId(link.sourceType, sourceNodeId) : null;
+    const to = targetNodeId ? getGraphNodeId(link.targetType, targetNodeId) : null;
+    if (!from || !to || from === to) return null;
+    return {
+      id: link.id,
+      sourceId: link.sourceId,
+      sourceType: link.sourceType,
+      sourcePort: link.sourcePort,
+      targetId: link.targetId,
+      targetType: link.targetType,
+      targetPort: link.targetPort,
+      from,
+      to,
+      type: "external",
+      metric: link.targetPort || "custom",
+      linkKind: "custom",
       external: true,
       removable: true
     };
@@ -357,6 +390,7 @@ export function buildGraphData(selectedProject, options = {}) {
         removable: true
       };
     }).filter(Boolean)),
+    ...(state.appSettings.graphShowExternal === false ? [] : customPortEdges),
     ...archiveEdges
   ];
 
@@ -384,10 +418,14 @@ export function buildGraphData(selectedProject, options = {}) {
       const sourceAncestorId = edge.from?.startsWith?.("project-") ? Number(edge.from.slice("project-".length)) : null;
       const targetAncestorId = edge.to?.startsWith?.("project-") ? Number(edge.to.slice("project-".length)) : null;
       if (sourceAncestorId && Number(edge.sourceId) !== sourceAncestorId) {
-        edge.sourcePortY = nestedPortY.get(`${sourceAncestorId}:${edge.sourceId}`);
+        const sourceBaseY = nestedPortY.get(`${sourceAncestorId}:${edge.sourceId}`);
+        const sourceOffset = getGraphPortYOffset("project", edge.sourceId, getGraphPortKeyForEdge(edge, "out")) || 0;
+        edge.sourcePortY = typeof sourceBaseY === "number" ? sourceBaseY + sourceOffset : sourceBaseY;
       }
       if (targetAncestorId && Number(edge.targetId) !== targetAncestorId) {
-        edge.targetPortY = nestedPortY.get(`${targetAncestorId}:${edge.targetId}`);
+        const targetBaseY = nestedPortY.get(`${targetAncestorId}:${edge.targetId}`);
+        const targetOffset = getGraphPortYOffset("project", edge.targetId, getGraphPortKeyForEdge(edge, "in")) || 0;
+        edge.targetPortY = typeof targetBaseY === "number" ? targetBaseY + targetOffset : targetBaseY;
       }
     });
   }
@@ -406,6 +444,22 @@ const GRAPH_GROUP_HEADER_PORT_Y = {
   advance: -2.55,
   archive: -1.7
 };
+const GRAPH_DYNAMIC_PORT_ROW_STEP = 1.16;
+
+function getGraphPortKeyForEdge(edge, direction) {
+  return direction === "out"
+    ? (edge?.sourcePort || edge?.metric || "completion")
+    : (edge?.targetPort || edge?.metric || "completion");
+}
+
+function getGraphPortYOffset(type, id, portKey) {
+  const node = { type, sourceId: Number(id), label: "" };
+  const ports = getGraphVisiblePorts(node);
+  if (!ports.length) return null;
+  const index = Math.max(0, ports.findIndex((port) => port.key === portKey));
+  const safeIndex = index < 0 ? 0 : index;
+  return (safeIndex - ((ports.length - 1) / 2)) * GRAPH_DYNAMIC_PORT_ROW_STEP;
+}
 
 function graphEdgeEndpoint(node, direction, edge) {
   if (edge?.type === "task") {
@@ -413,12 +467,16 @@ function graphEdgeEndpoint(node, direction, edge) {
   }
   const metric = edge?.metric || "completion";
   const nestedPortY = direction === "out" ? edge?.sourcePortY : edge?.targetPortY;
+  const portKey = getGraphPortKeyForEdge(edge, direction);
+  const endpointId = direction === "out" ? (edge?.sourceId ?? node.sourceId) : (edge?.targetId ?? node.sourceId);
+  const endpointType = node.type === "project" ? "project" : node.type;
+  const dynamicOffset = getGraphPortYOffset(endpointType, endpointId, portKey);
   const isOwnProjectPort = node.type === "project"
     && ((direction === "out" && Number(edge?.sourceId) === Number(node.sourceId))
       || (direction === "in" && Number(edge?.targetId) === Number(node.sourceId)));
-  const yOffset = isOwnProjectPort
+  const yOffset = dynamicOffset ?? (isOwnProjectPort
     ? (GRAPH_GROUP_HEADER_PORT_Y[metric] ?? GRAPH_GROUP_HEADER_PORT_Y.completion)
-    : (GRAPH_PORT_Y_OFFSETS[metric] ?? 0);
+    : (GRAPH_PORT_Y_OFFSETS[metric] ?? 0));
   const xOffset = direction === "out" ? GRAPH_PORT_X_OFFSET : -GRAPH_PORT_X_OFFSET;
   return {
     x: Math.max(0, Math.min(100, node.x + xOffset)),
@@ -528,6 +586,234 @@ export function graphPortDataAttrs({ direction, id, metric, type = "project" }) 
   ].join(" ");
 }
 
+const GRAPH_PORT_FIELD_OPTIONS = {
+  project: [
+    { key: "name", label: "이름" },
+    { key: "status", label: "상태" },
+    { key: "completion", label: "완성도" },
+    { key: "advance", label: "진행도" },
+    { key: "deadline", label: "마감일" },
+    { key: "note", label: "메모" },
+    { key: "parent", label: "상위" },
+    { key: "children", label: "하위" },
+    { key: "tasks", label: "작업" },
+    { key: "archive", label: "자료" }
+  ],
+  formula: [
+    { key: "title", label: "이름" },
+    { key: "formula-type", label: "계산 방식" },
+    { key: "completion", label: "완성도" },
+    { key: "advance", label: "진행도" },
+    { key: "value", label: "계산값" }
+  ],
+  archive: [
+    { key: "title", label: "이름" },
+    { key: "path", label: "경로" },
+    { key: "type", label: "종류" },
+    { key: "resource", label: "자료" },
+    { key: "archive", label: "자료 연결" }
+  ]
+};
+
+const GRAPH_DEFAULT_PORTS = {
+  project: ["completion", "advance"],
+  formula: ["completion", "advance"],
+  archive: ["archive"]
+};
+
+function normalizePortKey(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 32);
+}
+
+function getNodePortKey(type, id) {
+  return `${type}:${id}`;
+}
+
+function getGraphNodePortConfig(type, id) {
+  const nodeKey = getNodePortKey(type, id);
+  const config = state.appSettings.graphNodePortSettings?.[nodeKey] || {};
+  const project = type === "project" ? getProject(Number(id)) : null;
+  const defaults = type === "project" && project?.parentId
+    ? []
+    : (GRAPH_DEFAULT_PORTS[type] || []);
+  return {
+    nodeKey,
+    enabled: Array.isArray(config.enabled) ? config.enabled : defaults,
+    custom: Array.isArray(config.custom) ? config.custom : []
+  };
+}
+
+function getGraphNodePortOptions(type, id) {
+  const config = getGraphNodePortConfig(type, id);
+  const builtIns = GRAPH_PORT_FIELD_OPTIONS[type] || [];
+  const custom = config.custom.map((port) => ({
+    key: `custom-${normalizePortKey(port.id || port.label)}`,
+    label: port.label || port.id || "Custom"
+  }));
+  return { ...config, options: [...builtIns, ...custom] };
+}
+
+function isGraphCustomPortActive({ direction, type, id, portKey }) {
+  const nodeId = Number(id);
+  return (state.appSettings.graphCustomPortLinks || []).some((link) => {
+    if (direction === "out") {
+      return link.sourceType === type && Number(link.sourceId) === nodeId && link.sourcePort === portKey;
+    }
+    return link.targetType === type && Number(link.targetId) === nodeId && link.targetPort === portKey;
+  });
+}
+
+function getGraphVisiblePorts(node) {
+  if (!["project", "formula", "archive"].includes(node.type)) return [];
+  const { enabled, options } = getGraphNodePortOptions(node.type, node.sourceId);
+  const enabledSet = new Set(enabled);
+  return options.filter((port) => enabledSet.has(port.key));
+}
+
+function graphManagedPortStackMarkup(node, direction, { child = false } = {}) {
+  const ports = getGraphVisiblePorts(node);
+  if (!ports.length) return "";
+  const isOut = direction === "out";
+  const stackClass = child
+    ? `graph-child-port-stack managed ${isOut ? "out" : "in"}`
+    : `graph-port-stack graph-managed-port-stack ${isOut ? "graph-port-stack-out" : "graph-port-stack-in"} managed`;
+  const portClass = child ? "graph-child-port" : "graph-port";
+  const directionClass = child
+    ? `graph-child-port-${isOut ? "out" : "in"}`
+    : `graph-port-${isOut ? "out" : "in"}`;
+  const nodeLabel = escapeHtml(node.label);
+  const rows = ports.map((port) => {
+    const targetType = node.type === "project" && port.key === "archive" ? "archiveProject" : node.type;
+    const allowsOutput = !(node.type === "project" && port.key === "archive");
+    const activeClass = isGraphCustomPortActive({ direction, type: node.type, id: node.sourceId, portKey: port.key })
+      ? "is-connected"
+      : graphPortStateClass({ direction, id: node.sourceId, metric: port.key, type: isOut ? node.type : targetType });
+    const metricClass = `metric-${normalizePortKey(port.key)}`;
+    const label = `<span class="graph-port-label">${escapeHtml(port.label)}</span>`;
+    const button = isOut
+      ? (allowsOutput ? `<button type="button" class="${portClass} ${directionClass} ${metricClass} ${activeClass}" ${graphPortDataAttrs({ direction: "out", id: node.sourceId, metric: port.key, type: node.type })}
+          data-graph-connect-start="${node.sourceId}"
+          data-graph-connect-source="${node.type}"
+          data-graph-connect-metric="${port.key}"
+          data-graph-source-port="${port.key}"
+          aria-label="${nodeLabel} ${escapeHtml(port.label)} 출력"></button>` : `<i class="graph-port-placeholder" aria-hidden="true"></i>`)
+      : `<button type="button" class="${portClass} ${directionClass} ${metricClass} ${activeClass}" ${graphPortDataAttrs({ direction: "in", id: node.sourceId, metric: port.key, type: targetType })}
+          data-graph-connect-end="${node.sourceId}"
+          data-graph-connect-target="${targetType}"
+          data-graph-connect-metric="${port.key}"
+          data-graph-target-port="${port.key}"
+          aria-label="${nodeLabel} ${escapeHtml(port.label)} 입력"></button>`;
+    return `<span class="graph-port-item">${isOut ? `${button}${label}` : `${label}${button}`}</span>`;
+  }).join("");
+  return `<span class="${stackClass}" aria-label="${nodeLabel} ${isOut ? "반영 시작" : "반영 수신"}">${rows}</span>`;
+}
+
+function graphPortSlotMarkup(node) {
+  if (!["project", "formula", "archive"].includes(node.type)) return "";
+  const { enabled, options } = getGraphNodePortOptions(node.type, node.sourceId);
+  const enabledSet = new Set(enabled);
+  const rows = options.filter((port) => enabledSet.has(port.key)).map((port) => {
+    const inClass = isGraphCustomPortActive({ direction: "in", type: node.type, id: node.sourceId, portKey: port.key }) ? "is-connected" : "is-idle";
+    const outClass = isGraphCustomPortActive({ direction: "out", type: node.type, id: node.sourceId, portKey: port.key }) ? "is-connected" : "is-idle";
+    const targetType = node.type === "project" && port.key === "archive" ? "archiveProject" : node.type;
+    const allowsOutput = !(node.type === "project" && port.key === "archive");
+    return `
+      <div class="graph-free-port-row" data-graph-port-slot="${node.type}:${node.sourceId}:${port.key}"
+        data-graph-connect-end="${node.sourceId}"
+        data-graph-connect-target="${targetType}"
+        data-graph-connect-metric="${port.key}"
+        data-graph-target-port="${port.key}">
+        <button type="button" class="graph-port graph-free-port-in ${inClass}" ${graphPortDataAttrs({ direction: "in", id: node.sourceId, metric: port.key, type: node.type })} aria-label="${escapeHtml(node.label)} ${escapeHtml(port.label)} 입력"></button>
+        <span>${escapeHtml(port.label)}</span>
+        ${allowsOutput ? `<button type="button" class="graph-port graph-free-port-out ${outClass}" ${graphPortDataAttrs({ direction: "out", id: node.sourceId, metric: port.key, type: node.type })}
+          data-graph-connect-start="${node.sourceId}"
+          data-graph-connect-source="${node.type}"
+          data-graph-connect-metric="${port.key}"
+          data-graph-source-port="${port.key}"
+          aria-label="${escapeHtml(node.label)} ${escapeHtml(port.label)} 출력"></button>` : `<i class="graph-port-placeholder" aria-hidden="true"></i>`}
+      </div>
+    `;
+  }).join("");
+  return rows ? `<div class="graph-free-port-slots" aria-label="${escapeHtml(node.label)} 자유 포트">${rows}</div>` : "";
+}
+
+function graphPortSettingsMarkup(node) {
+  if (!["project", "formula", "archive"].includes(node.type)) return "";
+  const { nodeKey, enabled, options } = getGraphNodePortOptions(node.type, node.sourceId);
+  const enabledSet = new Set(enabled);
+  return `
+    <details class="graph-port-settings" data-graph-port-settings="${nodeKey}">
+      <summary>포트</summary>
+      <div class="graph-port-settings-grid">
+        ${options.map((port) => `
+          <label>
+            <input type="checkbox" data-graph-port-toggle="${nodeKey}" value="${port.key}" ${enabledSet.has(port.key) ? "checked" : ""} />
+            <span>${escapeHtml(port.label)}</span>
+            ${port.key.startsWith("custom-") ? `<button type="button" class="graph-custom-port-delete" data-graph-delete-custom-port="${nodeKey}:${port.key}" aria-label="${escapeHtml(port.label)} 포트 삭제">×</button>` : ""}
+          </label>
+        `).join("")}
+      </div>
+      <div class="graph-port-add-row">
+        <input type="text" data-graph-custom-port-name="${nodeKey}" maxlength="32" placeholder="새 포트" />
+        <button type="button" data-graph-add-custom-port="${nodeKey}">+</button>
+      </div>
+    </details>
+  `;
+}
+
+function graphPortSettingsSectionMarkup(node, { open = false } = {}) {
+  const { nodeKey, enabled, options } = getGraphNodePortOptions(node.type, node.sourceId);
+  const enabledSet = new Set(enabled);
+  const openAttr = open || state.graphOpenPortSectionKey === nodeKey ? " open" : "";
+  return `
+    <details class="graph-port-settings-section" data-graph-port-section="${nodeKey}"${openAttr}>
+      <summary>
+        <strong>${escapeHtml(node.label)}</strong>
+        <span class="graph-port-section-count">${enabled.length}/${options.length}</span>
+      </summary>
+      <div class="graph-port-section-body">
+        <div class="graph-port-settings-grid">
+        ${options.map((port) => `
+          <label>
+            <input type="checkbox" data-graph-port-toggle="${nodeKey}" value="${port.key}" ${enabledSet.has(port.key) ? "checked" : ""} />
+            <span>${escapeHtml(port.label)}</span>
+            ${port.key.startsWith("custom-") ? `<button type="button" class="graph-custom-port-delete" data-graph-delete-custom-port="${nodeKey}:${port.key}" aria-label="${escapeHtml(port.label)} 포트 삭제">×</button>` : ""}
+          </label>
+        `).join("")}
+        </div>
+        <div class="graph-port-add-row">
+        <input type="text" data-graph-custom-port-name="${nodeKey}" maxlength="32" placeholder="새 포트" />
+        <button type="button" data-graph-add-custom-port="${nodeKey}">+</button>
+        </div>
+      </div>
+    </details>
+  `;
+}
+
+function graphManagedPortSettingsMarkup(node, managedNodes = []) {
+  if (!["project", "formula", "archive"].includes(node.type)) return "";
+  const children = managedNodes.filter((item) => ["project", "formula", "archive"].includes(item.type));
+  const rootKey = getNodePortKey(node.type, node.sourceId);
+  const openAttr = state.appSettings.graphOpenPortSettingsKey === rootKey ? " open" : "";
+  return `
+    <details class="graph-port-settings" data-graph-port-settings="${rootKey}"${openAttr}>
+      <summary>포트</summary>
+      <div class="graph-port-settings-sections">
+        ${graphPortSettingsSectionMarkup(node, { open: true })}
+        ${children.length ? `
+          <div class="graph-port-managed-title">하위 프로젝트</div>
+          ${children.map((childNode) => graphPortSettingsSectionMarkup(childNode)).join("")}
+        ` : ""}
+      </div>
+    </details>
+  `;
+}
+
 export function graphProjectCardMarkup(item, depth = 0) {
   const child = item.project;
   const childCount = item.children.reduce((total, nested) => total + 1 + nested.children.length, 0);
@@ -609,11 +895,15 @@ export function graphProjectCardMarkup(item, depth = 0) {
       }).join("")}
     </div>
   ` : "";
+  const childNode = { type: "project", sourceId: child.id, label: child.name };
+  const childPortStackIn = graphManagedPortStackMarkup(childNode, "in", { child: true });
+  const childPortStackOut = graphManagedPortStackMarkup(childNode, "out", { child: true });
 
   return `
     <div class="graph-child-project-section${bottleneckClass}" style="--depth:${depth}">
       <div class="graph-child-project-wrap">
         <button type="button" class="graph-child-project-drag-handle" data-graph-drag-child-project="${child.id}" aria-label="${escapeHtml(child.name)} 이동">⠿</button>
+        ${childPortStackIn}
         <span class="graph-child-port-stack in" aria-label="${escapeHtml(child.name)} 반영 수신">
           <span class="graph-port-item"><span class="graph-port-label">완성</span><button type="button" class="graph-child-port graph-child-port-in metric-completion ${graphPortStateClass({ direction: "in", id: child.id, metric: "completion" })}" ${graphPortDataAttrs({ direction: "in", id: child.id, metric: "completion" })} data-graph-connect-end="${child.id}" data-graph-connect-metric="completion" aria-label="${escapeHtml(child.name)} 완성도에 반영"></button></span>
           <span class="graph-port-item"><span class="graph-port-label">진행</span><button type="button" class="graph-child-port graph-child-port-in metric-advance ${graphPortStateClass({ direction: "in", id: child.id, metric: "advance" })}" ${graphPortDataAttrs({ direction: "in", id: child.id, metric: "advance" })} data-graph-connect-end="${child.id}" data-graph-connect-metric="advance" aria-label="${escapeHtml(child.name)} 진행도에 반영"></button></span>
@@ -627,6 +917,7 @@ export function graphProjectCardMarkup(item, depth = 0) {
           <span>${getProjectDisplayProgress(child.id)}% 완성 · ${getProjectDisplayAdvance(child.id)}% 진행${childCount ? ` · 하위 ${childCount}` : ""}</span>
           ${dragLabelHtml}
         </button>
+        ${childPortStackOut}
         <span class="graph-child-port-stack out" aria-label="${escapeHtml(child.name)} 반영 시작">
           <span class="graph-port-item"><button type="button" class="graph-child-port graph-child-port-out metric-completion ${graphPortStateClass({ direction: "out", id: child.id, metric: "completion" })}" ${graphPortDataAttrs({ direction: "out", id: child.id, metric: "completion" })} data-graph-connect-start="${child.id}" data-graph-connect-metric="completion" aria-label="${escapeHtml(child.name)} 완성도에서 반영 연결 시작"></button><span class="graph-port-label">완성</span></span>
           <span class="graph-port-item"><button type="button" class="graph-child-port graph-child-port-out metric-advance ${graphPortStateClass({ direction: "out", id: child.id, metric: "advance" })}" ${graphPortDataAttrs({ direction: "out", id: child.id, metric: "advance" })} data-graph-connect-start="${child.id}" data-graph-connect-metric="advance" aria-label="${escapeHtml(child.name)} 진행도에서 반영 연결 시작"></button><span class="graph-port-label">진행</span></span>
@@ -913,19 +1204,20 @@ export function renderGraphView(project, options = {}) {
       </button>
     </div>
   ` : "";
+  const isFullGraph = options.full || state.appSettings.globalGraphView === true;
 
   return `
-    <section class="graph-view ${(options.full || state.appSettings.globalGraphView === true) ? "graph-view-full" : ""}">
+    <section class="graph-view ${isFullGraph ? "graph-view-full" : ""}">
       <div class="graph-note">
         <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 8px;">
           <div>
-            <strong>${(options.full || state.appSettings.globalGraphView === true) ? "전체 프로젝트 그래프" : "완성도 지도"}</strong>
-            <span>${state.graphNotice || ((options.full || state.appSettings.globalGraphView === true) ? "프로젝트 위계와 서로 반영되는 관계를 한 화면에서 봅니다." : "하위 프로젝트와 할 일 완성도가 상위 완성도를 만듭니다.")}</span>
+            <strong>${isFullGraph ? "전체 프로젝트 그래프" : "완성도 지도"}</strong>
+            <span>${state.graphNotice || (isFullGraph ? "프로젝트 위계와 서로 반영되는 관계를 한 화면에서 봅니다." : "하위 프로젝트와 할 일 완성도가 상위 완성도를 만듭니다.")}</span>
           </div>
           ${parentNavHtml}
         </div>
         <div class="graph-controls" aria-label="그래프 조작">
-          ${(options.full || state.appSettings.globalGraphView === true) ? `
+          ${isFullGraph ? `
             <div class="graph-filter" aria-label="그래프 필터">
               <button type="button" class="${(state.appSettings.graphScope || "all") === "all" ? "active" : ""}" data-graph-filter="scope" data-value="all">전체</button>
               <button type="button" class="${state.appSettings.graphScope === "local" ? "active" : ""}" data-graph-filter="scope" data-value="local">선택 구조</button>
@@ -1031,12 +1323,25 @@ export function renderGraphView(project, options = {}) {
               </span>
             ` : "";
             const formulaControls = node.type === "formula" ? graphFormulaControlsMarkup(node) : "";
+            const managedPortNodes = [];
+            const collectManagedPortNodes = (items) => {
+              items.forEach((item) => {
+                managedPortNodes.push({ type: "project", sourceId: item.project.id, label: item.project.name });
+                collectManagedPortNodes(item.children || []);
+              });
+            };
+            if (node.type === "project") collectManagedPortNodes(nestedProjects);
+            const portSettings = graphManagedPortSettingsMarkup(node, managedPortNodes);
+            const portSlots = "";
+            const managedPortStackIn = graphManagedPortStackMarkup(node, "in");
+            const managedPortStackOut = graphManagedPortStackMarkup(node, "out");
             return `
               <article class="graph-node ${options.full && node.type === "project" ? "project-group" : ""} ${node.type} ${node.selected ? "selected" : ""} ${node.multiSelected ? "multi-selected" : ""} ${node.scoped ? "scoped" : ""} ${node.urgent ? "urgent" : ""}${node.bottleneckClass || ""}" data-graph-project-node="${node.type === "project" ? node.sourceId : ""}" data-graph-task-node="${node.type === "task" ? node.sourceId : ""}" data-graph-free-node="${node.type === "memo" || node.type === "formula" || node.type === "archive" ? `${node.type}:${node.sourceId}` : ""}" style="--x:${node.x}%; --y:${node.y}%">
                 <button type="button" class="graph-inline-trigger" data-graph-inline-edit="${node.type}:${node.sourceId}" aria-label="${escapeHtml(node.label)} 이름 바로 수정">이름</button>
                 ${node.type === "project" ? `<button type="button" class="graph-drag-handle" data-graph-drag-handle-node="${node.sourceId}" data-graph-drag-node="${node.sourceId}" aria-label="${escapeHtml(node.label)} 이동">이동</button>` : ""}
                 ${node.type === "task" ? `<button type="button" class="graph-drag-handle task-drag-handle" data-graph-drag-task="${node.sourceId}" aria-label="${escapeHtml(node.label)} 이동 또는 복사">이동</button>` : ""}
                 ${node.type === "memo" || node.type === "formula" || node.type === "archive" ? `<button type="button" class="graph-drag-handle" data-graph-drag-free-node="${node.type}:${node.sourceId}" aria-label="${escapeHtml(node.label)} 이동">이동</button>` : ""}
+                ${managedPortStackIn}
                 ${node.type === "project" ? `
                   <span class="graph-port-stack graph-port-stack-in" aria-label="${escapeHtml(node.label)} 반영 수신">
                     <span class="graph-port-item"><span class="graph-port-label">완성</span><button type="button" class="graph-port graph-port-in metric-completion ${graphPortStateClass({ direction: "in", id: node.sourceId, metric: "completion", type: node.type })}" ${graphPortDataAttrs({ direction: "in", id: node.sourceId, metric: "completion", type: node.type })} data-graph-connect-end="${node.sourceId}" data-graph-connect-target="${node.type}" data-graph-connect-metric="completion" aria-label="${escapeHtml(node.label)} 완성도에 연결"></button></span>
@@ -1066,11 +1371,14 @@ export function renderGraphView(project, options = {}) {
                   ` : ""}
                 ` : ""}
                 ${formulaControls}
+                ${portSettings}
+                ${portSlots}
                 ${nestedProjectList}
                 ${groupedTaskList}
                 ${dockingSlot}
                 ${projectActions}
                 ${freeNodeActions}
+                ${managedPortStackOut}
                 ${node.type === "project" || node.type === "formula" || node.type === "archive" ? `
                   <span class="graph-port-stack graph-port-stack-out" aria-label="${escapeHtml(node.label)} 반영 시작">
                     <span class="graph-port-item"><button type="button" class="graph-port graph-port-out metric-${node.type === "archive" ? "archive" : "completion"} ${graphPortStateClass({ direction: "out", id: node.sourceId, metric: node.type === "archive" ? "archive" : "completion", type: node.type })}" ${graphPortDataAttrs({ direction: "out", id: node.sourceId, metric: node.type === "archive" ? "archive" : "completion", type: node.type })} data-graph-connect-start="${node.sourceId}" data-graph-connect-source="${node.type}" data-graph-connect-metric="${node.type === "archive" ? "archive" : "completion"}" aria-label="${escapeHtml(node.label)} ${node.type === "archive" ? "자료 연결 시작" : "완성도에서 연결 시작"}"></button><span class="graph-port-label">${node.type === "archive" ? "자료" : "완성"}</span></span>

@@ -5,7 +5,7 @@
 .app-shell {
   width: min(1120px, calc(100vw - 32px));
   height: min(820px, calc(100vh - 24px));
-  min-height: 700px;
+  min-height: min(700px, calc(100vh - 24px));
   display: grid;
   grid-template-rows: 58px 1fr;
   overflow: hidden;
@@ -22,7 +22,7 @@
 .topbar {
   position: relative;
   display: grid;
-  grid-template-columns: minmax(230px, auto) minmax(0, 1fr) auto auto;
+  grid-template-columns: minmax(190px, auto) minmax(0, 1fr) auto auto;
   align-items: center;
   gap: 14px;
   padding: 0 20px;
@@ -65,8 +65,8 @@
 }
 
 .view-tab-nav button.active {
-  background: var(--accent);
-  color: #fff;
+  background: var(--text);
+  color: var(--surface);
   font-weight: 700;
 }
 
@@ -84,6 +84,10 @@
 }
 
 .brand h1 {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   margin: 0;
   font-size: 22px;
   line-height: 1;
@@ -96,6 +100,9 @@
 }
 
 .brand p {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   margin: 0;
   color: var(--muted);
   font-size: 15px;
@@ -204,24 +211,130 @@
   height: 100%;
   min-height: 0;
   overflow: hidden;
-  background: color-mix(in srgb, var(--surface) 72%, var(--page));
+  background: var(--surface);
 }
 
 .archive-full-view[hidden] {
-  display: none;
+  display: none !important;
 }
 
 .archive-full-content {
   height: 100%;
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  padding: 0;
+}
+
+/* Obsidian Style Layout Panels */
+.archive-sidebar {
+  width: clamp(260px, 28vw, 310px);
+  min-width: 0;
+  border-right: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: color-mix(in srgb, var(--surface) 96%, var(--page));
+  flex-shrink: 0;
+}
+
+.archive-sidebar-header {
+  padding: 16px 16px;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.archive-sidebar-header h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.archive-sidebar-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 6px;
+}
+
+.archive-sidebar-content {
+  min-height: 0;
+  flex: 1;
   overflow-y: auto;
-  padding: 28px 36px;
+  padding: 12px 12px;
+}
+
+.archive-main {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--surface);
+}
+
+.archive-main-header {
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.archive-main-content {
+  min-width: 0;
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.archive-backlinks {
+  width: clamp(220px, 24vw, 270px);
+  min-width: 0;
+  border-left: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: color-mix(in srgb, var(--surface) 98%, var(--page));
+  flex-shrink: 0;
+}
+
+.archive-backlinks-header {
+  padding: 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.archive-backlinks-header h3 {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.archive-backlinks-content {
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
 }
 
 .workspace {
   position: relative;
   min-height: 0;
   display: grid;
-  grid-template-columns: minmax(310px, 34%) minmax(0, 1fr);
+  grid-template-columns: minmax(280px, 32%) minmax(0, 1fr);
   overflow: hidden;
   transition: grid-template-columns 0.2s var(--ease);
 }
@@ -288,7 +401,7 @@
 .detail-panel {
   position: relative;
   gap: 0;
-  padding: 30px 32px 26px;
+  padding: clamp(18px, 3vw, 30px) clamp(20px, 3vw, 32px) 24px;
   overflow: hidden;
   background: color-mix(in srgb, var(--surface) 72%, var(--page));
 }

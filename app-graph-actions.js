@@ -3,7 +3,8 @@ import {
   saveState,
   normalizeProjectLinks,
   normalizeGraphFormulaLinks,
-  normalizeGraphFormulaInputLinks
+  normalizeGraphFormulaInputLinks,
+  normalizeGraphCustomPortLinks
 } from "./state.js";
 
 import {
@@ -123,6 +124,41 @@ export function applyGraphFormulaInputConnection({ sourceType, sourceId, targetI
   saveState();
 }
 
+export function applyGraphCustomPortConnection({
+  sourceType = "project",
+  sourceId,
+  sourcePort,
+  targetType = "project",
+  targetId,
+  targetPort,
+  weight = 30
+}) {
+  state.appSettings.graphCustomPortLinks = state.appSettings.graphCustomPortLinks || [];
+  const linkId = `custom:${sourceType}:${sourceId}:${sourcePort}:${targetType}:${targetId}:${targetPort}`;
+  if (state.appSettings.graphCustomPortLinks.some((link) => link.id === linkId)) {
+    state.graphNotice = "이미 연결된 자유 포트입니다.";
+    return;
+  }
+  state.appSettings.graphCustomPortLinks.push({
+    id: linkId,
+    sourceType,
+    sourceId: Number(sourceId),
+    sourcePort,
+    targetType,
+    targetId: Number(targetId),
+    targetPort,
+    weight
+  });
+  state.appSettings.graphCustomPortLinks = normalizeGraphCustomPortLinks(
+    state.appSettings.graphCustomPortLinks,
+    state.projects,
+    state.appSettings.graphFormulaNodes,
+    state.appSettings.graphArchiveNodes
+  );
+  state.graphNotice = "자유 포트 연결을 만들었습니다.";
+  saveState();
+}
+
 export function removeGraphEdge(edgeId, canvas = null) {
   const parts = String(edgeId).split(":");
   const [type, sourceTypeOrId, sourceIdOrTargetId, targetIdOrMetric, metricText = "completion"] = parts;
@@ -162,6 +198,11 @@ export function removeGraphEdge(edgeId, canvas = null) {
     state.appSettings.graphArchiveLinks = (state.appSettings.graphArchiveLinks || [])
       .filter((link) => !(link.sourceId === archiveNodeId && link.targetType === targetType && link.targetId === targetId));
     state.graphNotice = "아카이브 연결을 끊었습니다.";
+  }
+  if (type === "custom") {
+    state.appSettings.graphCustomPortLinks = (state.appSettings.graphCustomPortLinks || [])
+      .filter((link) => link.id !== edgeId);
+    state.graphNotice = "자유 포트 연결을 지웠습니다.";
   }
   saveState();
   renderProjectList();

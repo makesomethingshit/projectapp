@@ -20,7 +20,7 @@ npm.cmd test
 ## Check Selection
 
 - Docs only: confirm files exist, inspect diff, ensure app source did not change.
-- Korean text or CSS `content`: consider `node test_encoding_integrity.mjs`.
+- Korean text, HTML labels, JavaScript template strings, or CSS `content`: run or explicitly consider `node test_encoding_integrity.mjs`; also run `node --check <changed-js-file>` for changed JavaScript and a narrow markup/UI test when the string renders in the app.
 - UI markup/style: run relevant markup tests or `npm test` when risk is not trivial.
 - State, rollup, storage, import/export, graph semantics: run related tests and `npm test`.
 - Packaging, `main.js`, `preload.js`, build config: run `npm test`; consider `npm run dist`.

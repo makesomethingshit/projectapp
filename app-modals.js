@@ -1,6 +1,8 @@
 import {
   state,
-  saveState
+  saveState,
+  ensureDefaultArchiveSources,
+  ensureDesignSiteTaskLink
 } from "./state.js";
 
 import {
@@ -535,6 +537,9 @@ export function closeArchiveSelectModal() {
 }
 
 export function openTaskLauncherModal(taskId) {
+  const addedDefaultArchiveSources = ensureDefaultArchiveSources();
+  const ensuredDesignSiteTaskLink = ensureDesignSiteTaskLink(taskId);
+  if (addedDefaultArchiveSources || ensuredDesignSiteTaskLink) saveState();
   const task = state.tasks.find((item) => Number(item.id) === Number(taskId));
   state.launchingTaskId = Number(taskId);
   if (taskLauncherTitle) taskLauncherTitle.textContent = task?.name || "작업 자료";

@@ -1,6 +1,7 @@
 import {
   state,
   saveState,
+  applyAutomaticArchiveLinks,
   createId,
   logActivity,
   normalizeProjectLinks
@@ -52,6 +53,7 @@ import {
   applyGraphConnection,
   applyGraphFormulaConnection,
   applyGraphFormulaInputConnection,
+  applyGraphCustomPortConnection,
   removeGraphEdge
 } from "./app-graph-actions.js";
 
@@ -95,6 +97,7 @@ import {
   addArchiveResource,
   deleteArchiveResource,
   updateArchiveResource,
+  scheduleArchiveEmbeddingRefresh,
   attachArchiveResourceToProject,
   detachArchiveResourceFromProject,
   deleteGraphFreeNode,
@@ -116,6 +119,67 @@ let spacePressed = false;
 
 let lastClickedProjectId = null;
 let lastClickedProjectTime = 0;
+let suppressGraphPortToggleUntil = 0;
+let archiveGraphPanDrag = null;
+
+function getArchiveGraphPanState(root) {
+  return {
+    x: Number(root.dataset.archiveGraphPanX || 0),
+    y: Number(root.dataset.archiveGraphPanY || 0),
+    k: Number(root.dataset.archiveGraphZoom || 1) || 1
+  };
+}
+
+function applyArchiveGraphPan(root, pan) {
+  const layer = root.querySelector("[data-archive-graph-pan-layer]");
+  if (!layer) return;
+  const next = {
+    x: Math.round(pan.x),
+    y: Math.round(pan.y),
+    k: Math.max(0.45, Math.min(2.2, Number(pan.k) || 1))
+  };
+  root.dataset.archiveGraphPanX = String(next.x);
+  root.dataset.archiveGraphPanY = String(next.y);
+  root.dataset.archiveGraphZoom = next.k.toFixed(2);
+  layer.style.transform = `translate(${next.x}px, ${next.y}px) scale(${next.k})`;
+  const hint = root.querySelector("[data-archive-graph-control-hint]");
+  if (hint) {
+    hint.textContent = `pan ${next.x}, ${next.y} · zoom ${Math.round(next.k * 100)}%`;
+  }
+}
+
+function isArchiveGraphPanExcluded(target) {
+  return Boolean(target.closest?.(
+    "[data-archive-graph-node], .archive-graph-inspector, .archive-graph-canvas-top, .archive-graph-axis, .archive-graph-control-hint"
+  ));
+}
+
+function suppressNextGraphPortToggle() {
+  suppressGraphPortToggleUntil = Date.now() + 700;
+}
+
+function shouldSuppressGraphPortToggle() {
+  return Date.now() < suppressGraphPortToggleUntil;
+}
+
+function closeSuppressedGraphPortDetails(details) {
+  if (!details?.matches?.(".graph-port-settings, .graph-port-settings-section")) return;
+  if (details.matches(".graph-port-settings")) {
+    const key = details.dataset.graphPortSettings || null;
+    if (state.appSettings.graphOpenPortSettingsKey === key) {
+      state.appSettings.graphOpenPortSettingsKey = null;
+    }
+  }
+  if (details.matches(".graph-port-settings-section")) {
+    const key = details.dataset.graphPortSection || null;
+    if (state.graphOpenPortSectionKey === key) {
+      state.graphOpenPortSectionKey = null;
+    }
+  }
+  if (details.open) {
+    details.open = false;
+  }
+}
 
 function getGraphSelectableProjectNodes(canvas) {
   return [...canvas.querySelectorAll("[data-graph-project-node]")]
@@ -139,6 +203,35 @@ function getGraphFreeNode(type, nodeId) {
   if (type === "formula") return state.appSettings.graphFormulaNodes?.find((item) => item.id === nodeId);
   if (type === "archive") return state.appSettings.graphArchiveNodes?.find((item) => item.id === nodeId);
   return null;
+}
+
+function normalizeGraphCustomPortId(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 32);
+}
+
+function ensureGraphPortSetting(nodeKey) {
+  state.appSettings.graphNodePortSettings = state.appSettings.graphNodePortSettings || {};
+  state.appSettings.graphNodePortSettings[nodeKey] = state.appSettings.graphNodePortSettings[nodeKey] || {};
+  const config = state.appSettings.graphNodePortSettings[nodeKey];
+  config.enabled = Array.isArray(config.enabled) ? config.enabled : [];
+  config.custom = Array.isArray(config.custom) ? config.custom : [];
+  return config;
+}
+
+function getDefaultGraphPortKeys(nodeKey) {
+  const [type, idText] = String(nodeKey).split(":");
+  if (type === "project") {
+    const project = state.projects.find((item) => Number(item.id) === Number(idText));
+    return project?.parentId ? [] : ["completion", "advance"];
+  }
+  if (type === "formula") return ["completion", "advance"];
+  if (type === "archive") return ["archive"];
+  return [];
 }
 
 function getSelectedFreeNodeInitialPositions(canvas, fallbackKey = null) {
@@ -267,6 +360,111 @@ export function initEvents() {
   const editProjectNoteInput = $("#editProjectNoteInput");
   const externalLinksList = $("#externalLinksList");
   const projectDeadlineInput = $("#projectDeadlineInput");
+
+  document.addEventListener("click", (event) => {
+    const portSettingsSummary = event.target.closest(".graph-port-settings > summary, .graph-port-settings-section > summary");
+    if (portSettingsSummary && shouldSuppressGraphPortToggle()) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      closeSuppressedGraphPortDetails(portSettingsSummary.closest("details"));
+    }
+  }, true);
+
+  document.addEventListener("toggle", (event) => {
+    const details = event.target;
+    if (details?.matches?.(".graph-port-settings, .graph-port-settings-section") && shouldSuppressGraphPortToggle()) {
+      closeSuppressedGraphPortDetails(details);
+    }
+  }, true);
+
+  document.addEventListener("pointerdown", (event) => {
+    const graphView = event.target.closest?.("[data-archive-graph-view]");
+    if (!graphView || state.viewMode !== "archive" || state.appSettings.globalGraphView === true) return;
+    if (event.button !== 0 || isArchiveGraphPanExcluded(event.target)) return;
+    const canvas = event.target.closest(".archive-graph-view-canvas");
+    if (!canvas) return;
+    const pan = getArchiveGraphPanState(graphView);
+    archiveGraphPanDrag = {
+      pointerId: event.pointerId,
+      root: graphView,
+      canvas,
+      startClientX: event.clientX,
+      startClientY: event.clientY,
+      startX: pan.x,
+      startY: pan.y,
+      k: pan.k
+    };
+    canvas.classList.add("is-panning");
+    canvas.setPointerCapture?.(event.pointerId);
+    event.preventDefault();
+    event.stopPropagation();
+  }, true);
+
+  document.addEventListener("pointermove", (event) => {
+    if (!archiveGraphPanDrag || event.pointerId !== archiveGraphPanDrag.pointerId) return;
+    const nextPan = {
+      x: archiveGraphPanDrag.startX + event.clientX - archiveGraphPanDrag.startClientX,
+      y: archiveGraphPanDrag.startY + event.clientY - archiveGraphPanDrag.startClientY,
+      k: archiveGraphPanDrag.k
+    };
+    applyArchiveGraphPan(archiveGraphPanDrag.root, nextPan);
+    event.preventDefault();
+    event.stopPropagation();
+  }, true);
+
+  const finishArchiveGraphPan = (event) => {
+    if (!archiveGraphPanDrag || event.pointerId !== archiveGraphPanDrag.pointerId) return;
+    archiveGraphPanDrag.canvas.releasePointerCapture?.(event.pointerId);
+    archiveGraphPanDrag.canvas.classList.remove("is-panning");
+    archiveGraphPanDrag = null;
+    event.preventDefault();
+    event.stopPropagation();
+  };
+  document.addEventListener("pointerup", finishArchiveGraphPan, true);
+  document.addEventListener("pointercancel", finishArchiveGraphPan, true);
+
+  document.addEventListener("wheel", (event) => {
+    const graphView = event.target.closest?.("[data-archive-graph-view]");
+    if (!graphView || state.viewMode !== "archive" || state.appSettings.globalGraphView === true) return;
+    const canvas = event.target.closest(".archive-graph-view-canvas");
+    if (!canvas || isArchiveGraphPanExcluded(event.target)) return;
+    const pan = getArchiveGraphPanState(graphView);
+    const rect = canvas.getBoundingClientRect();
+    const pointerX = event.clientX - rect.left;
+    const pointerY = event.clientY - rect.top;
+    const nextK = Math.max(0.45, Math.min(2.2, pan.k * (event.deltaY < 0 ? 1.1 : 0.9)));
+    const scaleDelta = nextK / pan.k;
+    applyArchiveGraphPan(graphView, {
+      x: pointerX - (pointerX - pan.x) * scaleDelta,
+      y: pointerY - (pointerY - pan.y) * scaleDelta,
+      k: nextK
+    });
+    event.preventDefault();
+    event.stopPropagation();
+  }, { capture: true, passive: false });
+
+  document.addEventListener("archive-graph-3d-select", (event) => {
+    const node = event.detail?.node;
+    if (!node || state.viewMode !== "archive") return;
+    if (node.resourceId !== undefined) {
+      state.selectedArchiveResourceId = Number(node.resourceId);
+      state.archiveEditMode = false;
+      saveState();
+      render();
+      return;
+    }
+    if (node.projectId !== undefined) {
+      state.selectedProjectId = Number(node.projectId);
+      state.viewMode = "detail";
+      state.appSettings.globalGraphView = false;
+      saveState();
+      render();
+      return;
+    }
+    if (node.taskId !== undefined) {
+      openNoteModal(Number(node.taskId));
+    }
+  });
 
   document.addEventListener("click", (event) => {
     // ── topbar 메인 뷰 탭 (상세 / 구조 지도 / 아카이브) - 최우선 처리 ──
@@ -450,7 +648,30 @@ export function initEvents() {
     if (delResBtn) {
       event.preventDefault();
       const resId = Number(delResBtn.dataset.deleteArchiveId);
+      if (state.selectedArchiveResourceId === resId) {
+        state.selectedArchiveResourceId = null;
+        state.archiveEditMode = false;
+      }
       deleteArchiveResource(resId);
+      return;
+    }
+
+    // -- Obsidian-Style Archive Sidebar Click --
+    const selectArchiveBtn = event.target.closest("[data-select-archive-id]");
+    if (selectArchiveBtn) {
+      event.preventDefault();
+      state.selectedArchiveResourceId = Number(selectArchiveBtn.dataset.selectArchiveId);
+      state.archiveEditMode = false;
+      render();
+      return;
+    }
+
+    // -- Obsidian-Style Archive Edit Mode Toggle --
+    const toggleEditModeBtn = event.target.closest("#toggleArchiveEditMode");
+    if (toggleEditModeBtn) {
+      event.preventDefault();
+      state.archiveEditMode = !state.archiveEditMode;
+      render();
       return;
     }
 
@@ -458,9 +679,51 @@ export function initEvents() {
     if (archiveViewModeBtn) {
       event.preventDefault();
       const mode = archiveViewModeBtn.dataset.archiveViewMode;
-      state.appSettings.archiveViewMode = ["topic", "type", "all"].includes(mode) ? mode : "topic";
+      state.appSettings.archiveViewMode = ["topic", "type", "all", "graph"].includes(mode) ? mode : "topic";
+      if (state.appSettings.archiveViewMode === "graph") scheduleArchiveEmbeddingRefresh("archive-graph-view");
       saveState();
       render();
+      return;
+    }
+
+    const archiveGraphDisplayModeBtn = event.target.closest("[data-archive-graph-display-mode]");
+    if (archiveGraphDisplayModeBtn) {
+      event.preventDefault();
+      const mode = archiveGraphDisplayModeBtn.dataset.archiveGraphDisplayMode;
+      state.appSettings.archiveGraphDisplayMode = ["graph3d", "graph2d"].includes(mode) ? mode : "graph3d";
+      scheduleArchiveEmbeddingRefresh("archive-graph-display");
+      saveState();
+      render();
+      return;
+    }
+
+    const archiveGraphDepthBtn = event.target.closest("[data-archive-graph-depth]");
+    if (archiveGraphDepthBtn) {
+      event.preventDefault();
+      const depth = Number(archiveGraphDepthBtn.dataset.archiveGraphDepth);
+      state.appSettings.archiveGraphDepth = [1, 2, 3, 4].includes(depth) ? depth : 2;
+      scheduleArchiveEmbeddingRefresh("archive-graph-depth");
+      saveState();
+      render();
+      return;
+    }
+
+    const archiveGraphRefBtn = event.target.closest("[data-archive-graph-node-ref]");
+    if (archiveGraphRefBtn) {
+      event.preventDefault();
+      const nodeId = archiveGraphRefBtn.dataset.archiveGraphNodeRef;
+      const graphView = archiveGraphRefBtn.closest("[data-archive-graph-view]");
+      if (graphView && nodeId) {
+        graphView.querySelectorAll(".archive-graph-view-node.is-inspected").forEach((node) => {
+          node.classList.remove("is-inspected");
+        });
+        const node = graphView.querySelector(`[data-archive-graph-node="${CSS.escape(nodeId)}"]`);
+        if (node) {
+          node.classList.add("is-inspected");
+          node.focus({ preventScroll: true });
+          setTimeout(() => node.classList.remove("is-inspected"), 1400);
+        }
+      }
       return;
     }
 
@@ -498,6 +761,61 @@ export function initEvents() {
       const metric = formulaSlotDeleteBtn.dataset.metric;
       const edgeId = `formulaIn:${sourceType}:${sourceId}:${formulaId}:${metric}`;
       removeGraphEdge(edgeId, formulaSlotDeleteBtn.closest(".graph-canvas"));
+      return;
+    }
+
+    const addCustomPortBtn = event.target.closest("[data-graph-add-custom-port]");
+    if (addCustomPortBtn) {
+      event.preventDefault();
+      event.stopPropagation();
+      const nodeKey = addCustomPortBtn.dataset.graphAddCustomPort;
+      state.appSettings.graphOpenPortSettingsKey = addCustomPortBtn.closest(".graph-port-settings")?.dataset.graphPortSettings || null;
+      state.graphOpenPortSectionKey = nodeKey;
+      const input = document.querySelector(`[data-graph-custom-port-name="${nodeKey}"]`);
+      const label = input?.value?.trim() || "";
+      const id = normalizeGraphCustomPortId(label);
+      if (!id) return;
+      const config = ensureGraphPortSetting(nodeKey);
+      if (!config.enabled.length) {
+        config.enabled = getDefaultGraphPortKeys(nodeKey);
+      }
+      const portKey = `custom-${id}`;
+      if (!config.custom.some((port) => port.id === id)) {
+        config.custom.push({ id, label });
+      }
+      if (!config.enabled.includes(portKey)) {
+        config.enabled.push(portKey);
+      }
+      if (input) input.value = "";
+      saveState();
+      renderGraphKeepingViewport(addCustomPortBtn.closest(".graph-canvas"));
+      return;
+    }
+
+    const deleteCustomPortBtn = event.target.closest("[data-graph-delete-custom-port]");
+    if (deleteCustomPortBtn) {
+      event.preventDefault();
+      event.stopPropagation();
+      const [type, idText, portKey] = String(deleteCustomPortBtn.dataset.graphDeleteCustomPort).split(":");
+      state.appSettings.graphOpenPortSettingsKey = deleteCustomPortBtn.closest(".graph-port-settings")?.dataset.graphPortSettings || null;
+      const nodeKey = `${type}:${idText}`;
+      state.graphOpenPortSectionKey = nodeKey;
+      const config = ensureGraphPortSetting(nodeKey);
+      config.enabled = config.enabled.filter((key) => key !== portKey);
+      config.custom = config.custom.filter((port) => `custom-${normalizeGraphCustomPortId(port.id || port.label)}` !== portKey);
+      const nodeId = Number(idText);
+      state.appSettings.graphCustomPortLinks = (state.appSettings.graphCustomPortLinks || []).filter((link) => {
+        const usesSourcePort = link.sourceType === type && Number(link.sourceId) === nodeId && link.sourcePort === portKey;
+        const usesTargetPort = link.targetType === type && Number(link.targetId) === nodeId && link.targetPort === portKey;
+        return !usesSourcePort && !usesTargetPort;
+      });
+      saveState();
+      renderGraphKeepingViewport(deleteCustomPortBtn.closest(".graph-canvas"));
+      return;
+    }
+
+    if (event.target.closest(".graph-port-settings, [data-graph-port-slot]")) {
+      event.stopPropagation();
       return;
     }
 
@@ -635,10 +953,6 @@ export function initEvents() {
         state.detailFilter = "all";
         render();
         return;
-      }
-      if (event.target.closest("[data-project-row]")) {
-        state.expandedProjectIds.add(state.selectedProjectId);
-        revealProjectPath(state.selectedProjectId);
       }
       state.detailFilter = "all";
       render();
@@ -1148,11 +1462,15 @@ export function initEvents() {
         state.graphConnectionStartId = Number(startPort.dataset.graphConnectStart);
         state.graphConnectionSourceType = startPort.dataset.graphConnectSource || "project";
         state.graphConnectionMetric = startPort.dataset.graphConnectMetric || "completion";
+        state.graphConnectionSourcePort = startPort.dataset.graphSourcePort || state.graphConnectionMetric;
+        state.graphConnectionTargetPort = null;
       } else {
         state.graphConnectionDirection = "backward";
         state.graphConnectionStartId = Number(endPortDown.dataset.graphConnectEnd);
         state.graphConnectionSourceType = endPortDown.dataset.graphConnectTarget || "project";
         state.graphConnectionMetric = endPortDown.dataset.graphConnectMetric || "completion";
+        state.graphConnectionSourcePort = null;
+        state.graphConnectionTargetPort = endPortDown.dataset.graphTargetPort || state.graphConnectionMetric;
       }
       state.graphConnectionDrag = {
         canvas,
@@ -1352,6 +1670,7 @@ export function initEvents() {
       document.querySelectorAll(".graph-node.dragging").forEach((node) => node.classList.remove("dragging"));
       if (state.graphFreeNodeDrag.moved) {
         state.suppressGraphClick = true;
+        suppressNextGraphPortToggle();
         saveState();
         renderGraphKeepingViewport(state.graphFreeNodeDrag.canvas);
       }
@@ -1369,6 +1688,7 @@ export function initEvents() {
 
       if (moved) {
         state.suppressGraphClick = true;
+        suppressNextGraphPortToggle();
         section.style.visibility = "hidden";
         const dropEl = document.elementFromPoint(event.clientX, event.clientY);
         section.style.visibility = "";
@@ -1424,6 +1744,7 @@ export function initEvents() {
     if (state.graphDrag) {
       if (state.graphDrag.moved) {
         state.suppressGraphClick = true;
+        suppressNextGraphPortToggle();
         document.querySelectorAll(".graph-node.drop-target").forEach((n) => n.classList.remove("drop-target"));
         const dropTargetId = state.graphDrag.dropTargetId || 0;
         const draggedId = state.graphDrag.projectIds.length === 1 ? state.graphDrag.projectIds[0] : 0;
@@ -1455,6 +1776,7 @@ export function initEvents() {
       const canvas = state.graphTaskDrag.canvas;
       if (state.graphTaskDrag.moved) {
         state.suppressGraphClick = true;
+        suppressNextGraphPortToggle();
         finishGraphTaskDrop(event);
       } else {
         state.graphTaskDrag.card.classList.remove("dragging");
@@ -1472,6 +1794,8 @@ export function initEvents() {
     let targetId = null;
     let targetType = null;
     let metric = null;
+    let sourcePort = null;
+    let targetPort = null;
 
     if (state.graphConnectionDirection === "backward") {
       const dropPort = event.target.closest("[data-graph-connect-start]")
@@ -1482,6 +1806,8 @@ export function initEvents() {
         targetId = state.graphConnectionStartId;
         targetType = state.graphConnectionSourceType || "project";
         metric = state.graphConnectionMetric || dropPort.dataset.graphConnectMetric || "completion";
+        sourcePort = dropPort.dataset.graphSourcePort || dropPort.dataset.graphConnectMetric || metric;
+        targetPort = state.graphConnectionTargetPort || metric;
       }
     } else {
       const endPort = event.target.closest("[data-graph-connect-end]")
@@ -1492,6 +1818,8 @@ export function initEvents() {
         targetId = Number(endPort.dataset.graphConnectEnd);
         targetType = endPort.dataset.graphConnectTarget || "project";
         metric = endPort.dataset.graphConnectMetric || state.graphConnectionMetric || "completion";
+        sourcePort = state.graphConnectionSourcePort || metric;
+        targetPort = endPort.dataset.graphTargetPort || endPort.dataset.graphConnectMetric || metric;
       } else if (state.graphConnectionSourceType === "archive") {
         const pointEl = document.elementFromPoint(event.clientX, event.clientY);
         const taskCard = pointEl?.closest?.("[data-graph-task-node]") || pointEl?.closest?.(".graph-task-card") || pointEl?.closest?.("[data-graph-drag-task]");
@@ -1502,11 +1830,29 @@ export function initEvents() {
           const rawId = taskCard.dataset.graphTaskNode || taskCard.dataset.openNote || taskCard.dataset.graphDragTask;
           targetId = Number(rawId);
           targetType = "task";
+          sourcePort = state.graphConnectionSourcePort || "archive";
+          targetPort = "task";
         }
       }
     }
 
     if (sourceId && targetId) {
+      const isBuiltInGraphMetric = ["completion", "advance", "archive"].includes(metric);
+      const shouldUseCustomPortLink = targetType !== "task"
+        && (!isBuiltInGraphMetric || sourcePort !== metric || targetPort !== metric);
+      if (shouldUseCustomPortLink) {
+        applyGraphCustomPortConnection({
+          sourceType,
+          sourceId,
+          sourcePort: sourcePort || metric,
+          targetType,
+          targetId,
+          targetPort: targetPort || metric,
+          weight: 30
+        });
+        sourceId = null;
+      }
+
       if (sourceType === "archive") {
         if (targetType === "archiveProject") {
           targetType = "project";
@@ -1559,6 +1905,8 @@ export function initEvents() {
     state.graphConnectionStartId = null;
     state.graphConnectionSourceType = null;
     state.graphConnectionMetric = null;
+    state.graphConnectionSourcePort = null;
+    state.graphConnectionTargetPort = null;
     state.graphConnectionDirection = null;
     clearGraphConnectionPreview();
     render();
@@ -1671,6 +2019,19 @@ export function initEvents() {
         saveState();
         render();
       }
+      return;
+    }
+
+    const portToggle = event.target.closest("[data-graph-port-toggle]");
+    if (portToggle) {
+      const nodeKey = portToggle.dataset.graphPortToggle;
+      const config = ensureGraphPortSetting(nodeKey);
+      state.appSettings.graphOpenPortSettingsKey = portToggle.closest(".graph-port-settings")?.dataset.graphPortSettings || null;
+      state.graphOpenPortSectionKey = nodeKey;
+      const checkedPorts = portToggle.closest(".graph-port-settings-section")?.querySelectorAll("[data-graph-port-toggle]:checked") || [];
+      config.enabled = [...checkedPorts].map((input) => input.value);
+      saveState();
+      renderGraphKeepingViewport(portToggle.closest(".graph-canvas"));
       return;
     }
 
@@ -1802,6 +2163,7 @@ export function initEvents() {
       state.selectedProjectId = id;
       state.projectFilter = "all";
       state.detailFilter = "all";
+      applyAutomaticArchiveLinks();
       closeProjectModal();
       render();
       return;
@@ -1821,6 +2183,7 @@ export function initEvents() {
         project.contributionMode = editContributionModeInput.value || "both";
         project.note = editProjectNoteInput.value.trim();
         project.deadline = clearProjectDeadline.checked ? null : projectDeadlineInput.value;
+        applyAutomaticArchiveLinks();
         state.projectLinks = state.projectLinks.filter((link) => link.sourceId !== project.id);
         const targets = new Set();
         externalLinksList?.querySelectorAll(".external-link-row").forEach((row) => {
@@ -1853,6 +2216,8 @@ export function initEvents() {
       state.appSettings.graphFormulaLinks = (state.appSettings.graphFormulaLinks || []).filter((link) => !deleteIds.includes(link.targetId));
       state.appSettings.graphFormulaInputLinks = (state.appSettings.graphFormulaInputLinks || [])
         .filter((link) => !(link.sourceType === "project" && deleteIds.includes(link.sourceId)));
+      state.appSettings.graphCustomPortLinks = (state.appSettings.graphCustomPortLinks || [])
+        .filter((link) => !(link.sourceType === "project" && deleteIds.includes(link.sourceId)) && !(link.targetType === "project" && deleteIds.includes(link.targetId)));
       affectedWeightParentIds.forEach((id) => pruneCompletionWeights(id));
       deleteIds.forEach((id) => state.expandedProjectIds.delete(id));
       state.selectedProjectId = state.projects[0]?.id || null;
@@ -1865,6 +2230,9 @@ export function initEvents() {
       const deletingTask = state.tasks.find((task) => task.id === state.deletingTaskId);
       state.tasks = state.tasks.filter((task) => task.id !== state.deletingTaskId);
       state.appSettings.focusedTaskIds = (state.appSettings.focusedTaskIds || []).filter((id) => Number(id) !== Number(state.deletingTaskId));
+      state.archiveResourceLinks = (state.archiveResourceLinks || []).filter((link) => {
+        return !(link.targetType === "task" && Number(link.targetId) === Number(state.deletingTaskId));
+      });
       if (deletingTask?.projectId) pruneCompletionWeights(deletingTask.projectId);
       closeDeleteTaskModal();
       render();
@@ -1898,6 +2266,7 @@ export function initEvents() {
         }
         if (originalProjectId) pruneCompletionWeights(originalProjectId);
         if (targetProjectId && targetProjectId !== originalProjectId) pruneCompletionWeights(targetProjectId);
+        applyAutomaticArchiveLinks();
       }
       closeNoteModal();
       saveState();
@@ -1919,6 +2288,7 @@ export function initEvents() {
         contributionMode: taskContributionModeInput.value || "both",
         note: ""
       }, ...state.tasks];
+      applyAutomaticArchiveLinks();
       input.value = "";
       closeTaskModal();
       render();
@@ -2108,6 +2478,7 @@ export function initEvents() {
     if (editArchiveForm) {
       event.preventDefault();
       const resourceId = Number(editArchiveForm.dataset.editArchiveForm);
+      state.archiveEditMode = false;
       updateArchiveResource(resourceId, {
         name: editArchiveForm.querySelector("[data-edit-archive-name]")?.value || "",
         type: editArchiveForm.querySelector("[data-edit-archive-type]")?.value || "file",
@@ -2129,11 +2500,14 @@ export function initEvents() {
       if (nameInput && typeInput && pathInput) {
         const desc = descInput ? descInput.value : "";
         const tags = tagsInput ? tagsInput.value : "";
-        addArchiveResource(nameInput.value, typeInput.value, pathInput.value, desc, null, tags);
+        const newId = addArchiveResource(nameInput.value, typeInput.value, pathInput.value, desc, null, tags);
+        state.selectedArchiveResourceId = newId;
+        state.archiveEditMode = false;
         nameInput.value = "";
         pathInput.value = "";
         if (descInput) descInput.value = "";
         if (tagsInput) tagsInput.value = "";
+        render();
       }
     }
   });

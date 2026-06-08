@@ -10,10 +10,16 @@ import {
 } from "./calculator.js";
 
 import {
+  buildAutomaticArchiveResourceLinks,
+  addArchiveResourceLink,
   migrateProjectResourcesToArchive,
   normalizeArchiveResources,
-  normalizeArchiveResourceLinks
+  normalizeArchiveResourceLinks,
+  normalizeArchiveTags
 } from "./archive-model.js";
+
+import { DEFAULT_ARCHIVE_SOURCES } from "./archive-seed-sources.js";
+import { hydrateArchiveSemanticEmbeddings } from "./archive-embeddings.js";
 
 // ==============================================================
 // FUNCTION INDEX (state.js)
@@ -61,6 +67,7 @@ const defaultTasks = [
   { id: 6, name: "작업물 설명 보강", projectId: 2, progress: 20, note: "" },
   { id: 7, name: "타이포그래피 시스템 정리", projectId: 3, progress: 50, note: "" },
   { id: 8, name: "와이어프레임 업데이트", projectId: 3, progress: 25, note: "" },
+  { id: 13, name: "디자인 사이트 보기", projectId: 3, progress: 0, advance: 0, contributionMode: "advance", note: "디자인 참고 사이트를 둘러보고 개인 웹사이트 방향에 반영할 것." },
   { id: 9, name: "시리즈 스케치", projectId: 4, progress: 10, note: "" },
   { id: 10, name: "커리큘럼 구성", projectId: 5, progress: 0, note: "" }
 ];
@@ -85,10 +92,16 @@ export const state = {
     graphFormulaNodes: [],
     graphFormulaLinks: [],
     graphFormulaInputLinks: [],
+    graphNodePortSettings: {},
+    graphCustomPortLinks: [],
+    graphOpenPortSettingsKey: null,
     graphScope: "all",
     graphShowTasks: true,
     graphShowExternal: true,
     archiveViewMode: "topic",
+    archiveGraphDisplayMode: "graph3d",
+    archiveGraphDepth: 2,
+    archiveGraphLabelDensity: "focus",
     graphArchiveNodes: [],
     graphArchiveLinks: [],
     focusedTaskIds: [],
@@ -102,6 +115,8 @@ export const state = {
     }
   },
   selectedProjectId: 1,
+  selectedArchiveResourceId: null,
+  archiveEditMode: false,
   projectFilter: "all",
   detailFilter: "all",
   viewMode: "detail",
@@ -117,7 +132,10 @@ export const state = {
   graphConnectionStartId: null,
   graphConnectionSourceType: null,
   graphConnectionMetric: null,
+  graphConnectionSourcePort: null,
+  graphConnectionTargetPort: null,
   graphConnectionDirection: null,
+  graphOpenPortSectionKey: null,
   graphNotice: "",
   graphDrag: null,
   graphFreeNodeDrag: null,
@@ -136,6 +154,135 @@ export function createId(items) {
   return Math.max(Date.now(), maxExistingId + 1);
 }
 
+function createSeedArchiveResourceId(resources, offset = 0) {
+  return Math.max(Date.now() + offset, 1 + Math.max(0, ...resources.map((resource) => Number(resource.id) || 0)) + offset);
+}
+
+export function ensureDefaultArchiveSources() {
+  const existingPaths = new Set((Array.isArray(state.archiveResources) ? state.archiveResources : [])
+    .map((resource) => String(resource.path || "").toLowerCase())
+    .filter(Boolean));
+  let added = 0;
+  let selectedId = null;
+
+  DEFAULT_ARCHIVE_SOURCES.forEach((source) => {
+    const resources = Array.isArray(source.resources) ? source.resources : [];
+    resources.forEach((resource, index) => {
+      const path = String(resource.path || "").trim();
+      if (!path || existingPaths.has(path.toLowerCase())) return;
+      const id = createSeedArchiveResourceId(state.archiveResources, added + index + 1);
+      const nextResource = {
+        id,
+        name: resource.name || path,
+        type: ["file", "folder", "link"].includes(resource.type) ? resource.type : "file",
+        path,
+        desc: resource.desc || "",
+        tags: normalizeArchiveTags(resource.tags || source.classification || "reference-library"),
+        createdAt: resource.createdAt || source.scannedAt || new Date().toISOString()
+      };
+      state.archiveResources.push(nextResource);
+      existingPaths.add(path.toLowerCase());
+      added += 1;
+      if (!selectedId && path.toLowerCase() === String(source.sourceRoot || "").toLowerCase()) {
+        selectedId = id;
+      }
+    });
+  });
+
+  if (selectedId && !state.selectedArchiveResourceId) {
+    state.selectedArchiveResourceId = selectedId;
+  }
+  return added;
+}
+
+function normalizeDesignSiteTaskName(value) {
+  return String(value || "").replace(/\s+/g, "").toLowerCase();
+}
+
+function isDesignSiteTask(task) {
+  const normalizedTarget = normalizeDesignSiteTaskName("디자인 사이트 보기");
+  const normalizedName = normalizeDesignSiteTaskName(task?.name);
+  return normalizedName === normalizedTarget
+    || (normalizedName.includes("디자인") && normalizedName.includes("사이트") && normalizedName.includes("보기"));
+}
+
+function findDesignSiteTask(projectId) {
+  const candidates = (Array.isArray(state.tasks) ? state.tasks : []).filter((task) => {
+    return isDesignSiteTask(task);
+  });
+  return candidates.find((task) => Number(task.projectId) === Number(projectId))
+    || candidates[0]
+    || null;
+}
+
+function findDesignSiteLinkResources() {
+  return (Array.isArray(state.archiveResources) ? state.archiveResources : []).filter((resource) => {
+    const tags = Array.isArray(resource.tags) ? resource.tags : [];
+    const desc = String(resource.desc || "");
+    return resource.type === "link"
+      && tags.includes("디자인 참고 사이트")
+      && desc.includes("디자인 참고 사이트.html");
+  });
+}
+
+export function ensureDesignSiteTaskLink(targetTaskId = null) {
+  const taskName = "디자인 사이트 보기";
+  const targetTask = targetTaskId !== null
+    ? state.tasks.find((item) => Number(item.id) === Number(targetTaskId))
+    : null;
+  const fallbackProject = state.projects.find((item) => item.name === "개인 웹사이트")
+    || state.projects.find((item) => Number(item.id) === 3);
+  const project = targetTask
+    ? (state.projects.find((item) => Number(item.id) === Number(targetTask.projectId)) || fallbackProject)
+    : fallbackProject;
+  if (!project) return 0;
+
+  let changed = 0;
+  let task = targetTask && isDesignSiteTask(targetTask)
+    ? targetTask
+    : findDesignSiteTask(project.id);
+  if (!task) {
+    task = {
+      id: createId(state.tasks),
+      name: taskName,
+      projectId: Number(project.id),
+      progress: 0,
+      advance: 0,
+      contributionMode: "advance",
+      note: "디자인 참고 사이트를 둘러보고 개인 웹사이트 방향에 반영할 것."
+    };
+    state.tasks.push(task);
+    changed += 1;
+  }
+
+  const designSiteResources = findDesignSiteLinkResources();
+  if (!designSiteResources.length) return changed;
+
+  let nextLinks = state.archiveResourceLinks;
+  let addedLinks = 0;
+  designSiteResources.forEach((resource) => {
+    const hadLink = (Array.isArray(nextLinks) ? nextLinks : []).some((link) => (
+      Number(link.resourceId) === Number(resource.id)
+      && link.targetType === "task"
+      && Number(link.targetId) === Number(task.id)
+    ));
+    nextLinks = addArchiveResourceLink(nextLinks, resource.id, "task", task.id);
+    if (!hadLink) addedLinks += 1;
+  });
+  state.archiveResourceLinks = normalizeArchiveResourceLinks(
+    nextLinks,
+    state.projects,
+    state.tasks,
+    state.archiveResources
+  );
+  changed += state.archiveResourceLinks.filter((link) => (
+    link.targetType === "task"
+    && Number(link.targetId) === Number(task.id)
+    && designSiteResources.some((resource) => Number(resource.id) === Number(link.resourceId))
+  )).length ? addedLinks : 0;
+
+  return changed;
+}
 function migrateLegacyProjectResources() {
   const migrated = migrateProjectResourcesToArchive(
     state.projects,
@@ -151,6 +298,24 @@ function migrateLegacyProjectResources() {
     state.archiveResources
   );
   return migrated.resourceMap;
+}
+
+export function applyAutomaticArchiveLinks() {
+  hydrateArchiveSemanticEmbeddings(state);
+  const result = buildAutomaticArchiveResourceLinks(
+    state.projects,
+    state.tasks,
+    state.archiveResources,
+    state.archiveResourceLinks
+  );
+  if (!result.added) return 0;
+  state.archiveResourceLinks = normalizeArchiveResourceLinks(
+    result.links,
+    state.projects,
+    state.tasks,
+    state.archiveResources
+  );
+  return result.added;
 }
 
 export function normalizeProjects(nextProjects) {
@@ -255,6 +420,70 @@ export function normalizeGraphFormulaInputLinks(nextLinks, nextProjects = state.
     .filter((link) => {
       const validSource = link.sourceType === "formula" ? knownFormulaIds.has(link.sourceId) : knownProjectIds.has(link.sourceId);
       return validSource && knownFormulaIds.has(link.targetId) && !(link.sourceType === "formula" && link.sourceId === link.targetId);
+    });
+}
+
+function normalizeCustomPortId(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 32);
+}
+
+export function normalizeGraphNodePortSettings(nextSettings) {
+  if (!nextSettings || typeof nextSettings !== "object") return {};
+  return Object.fromEntries(Object.entries(nextSettings).map(([nodeKey, config]) => {
+    const enabled = Array.isArray(config?.enabled)
+      ? [...new Set(config.enabled.map((key) => normalizeCustomPortId(key)).filter(Boolean))]
+      : [];
+    const custom = Array.isArray(config?.custom)
+      ? config.custom.map((port) => {
+        const label = String(port?.label || "").trim().slice(0, 32);
+        const id = normalizeCustomPortId(port?.id || label);
+        return id && label ? { id, label } : null;
+      }).filter(Boolean)
+      : [];
+    return [String(nodeKey), { enabled, custom }];
+  }));
+}
+
+export function normalizeGraphCustomPortLinks(
+  nextLinks,
+  nextProjects = state.projects,
+  nextFormulaNodes = state.appSettings.graphFormulaNodes,
+  nextArchiveNodes = state.appSettings.graphArchiveNodes
+) {
+  const knownIds = {
+    project: new Set(nextProjects.map((project) => Number(project.id))),
+    formula: new Set((Array.isArray(nextFormulaNodes) ? nextFormulaNodes : []).map((node) => Number(node.id))),
+    archive: new Set((Array.isArray(nextArchiveNodes) ? nextArchiveNodes : []).map((node) => Number(node.id)))
+  };
+  return (Array.isArray(nextLinks) ? nextLinks : [])
+    .map((link) => {
+      const sourceType = ["project", "formula", "archive"].includes(link.sourceType) ? link.sourceType : "project";
+      const targetType = ["project", "formula", "archive"].includes(link.targetType) ? link.targetType : "project";
+      const sourceId = Number(link.sourceId);
+      const targetId = Number(link.targetId);
+      const sourcePort = normalizeCustomPortId(link.sourcePort || link.metric || "custom");
+      const targetPort = normalizeCustomPortId(link.targetPort || link.metric || "custom");
+      return {
+        id: link.id || `custom:${sourceType}:${sourceId}:${sourcePort}:${targetType}:${targetId}:${targetPort}`,
+        sourceType,
+        sourceId,
+        sourcePort,
+        targetType,
+        targetId,
+        targetPort,
+        weight: Math.max(5, Math.min(90, Number(link.weight) || 30))
+      };
+    })
+    .filter((link) => {
+      const validSource = knownIds[link.sourceType]?.has(link.sourceId);
+      const validTarget = knownIds[link.targetType]?.has(link.targetId);
+      const sameNode = link.sourceType === link.targetType && link.sourceId === link.targetId;
+      return validSource && validTarget && !sameNode && link.sourcePort && link.targetPort;
     });
 }
 
@@ -397,12 +626,22 @@ export function loadState() {
     if (!saved) {
       injectDemoData();
       migrateLegacyProjectResources();
+      ensureDefaultArchiveSources();
+      ensureDesignSiteTaskLink();
+      applyAutomaticArchiveLinks();
+      saveState();
       return;
     }
     applyLoadedState(saved);
+    const addedDefaultArchiveSources = ensureDefaultArchiveSources();
+    const ensuredDesignSiteTaskLink = ensureDesignSiteTaskLink();
+    const addedAutomaticArchiveLinks = applyAutomaticArchiveLinks();
+    if (addedDefaultArchiveSources || ensuredDesignSiteTaskLink || addedAutomaticArchiveLinks) saveState();
     
     if (!state.projects.some(p => p.id === 9)) {
       injectDemoData();
+      ensureDesignSiteTaskLink();
+      applyAutomaticArchiveLinks();
       saveState();
     }
   } catch (error) {
@@ -412,17 +651,29 @@ export function loadState() {
 }
 
 export function getSerializableState() {
+  const withoutTransientEmbedding = (item) => {
+    const {
+      semanticEmbedding,
+      semanticEmbeddingHash,
+      semanticEmbeddingModel,
+      ...serializable
+    } = item || {};
+    return serializable;
+  };
+
   return {
     version: 1,
     exportedAt: new Date().toISOString(),
-    projects: state.projects,
-    tasks: state.tasks,
+    projects: state.projects.map(withoutTransientEmbedding),
+    tasks: state.tasks.map(withoutTransientEmbedding),
     projectLinks: state.projectLinks,
-    archiveResources: state.archiveResources,
+    archiveResources: state.archiveResources.map(withoutTransientEmbedding),
     archiveResourceLinks: state.archiveResourceLinks,
     completionWeights: state.completionWeights,
     appSettings: state.appSettings,
     selectedProjectId: state.selectedProjectId,
+    selectedArchiveResourceId: state.selectedArchiveResourceId,
+    archiveEditMode: state.archiveEditMode,
     projectFilter: state.projectFilter,
     detailFilter: state.detailFilter,
     viewMode: state.viewMode,
@@ -526,18 +777,40 @@ export function applyLoadedState(saved) {
     state.tasks,
     state.appSettings.graphArchiveNodes
   );
+  state.appSettings.graphNodePortSettings = normalizeGraphNodePortSettings(state.appSettings.graphNodePortSettings);
+  state.appSettings.graphOpenPortSettingsKey = typeof state.appSettings.graphOpenPortSettingsKey === "string"
+    ? state.appSettings.graphOpenPortSettingsKey
+    : null;
+  state.appSettings.graphCustomPortLinks = normalizeGraphCustomPortLinks(
+    state.appSettings.graphCustomPortLinks,
+    state.projects,
+    state.appSettings.graphFormulaNodes,
+    state.appSettings.graphArchiveNodes
+  );
   state.appSettings.graphScope = state.appSettings.graphScope === "local" ? "local" : "all";
   state.appSettings.graphShowTasks = state.appSettings.graphShowTasks !== false;
   state.appSettings.graphShowExternal = state.appSettings.graphShowExternal !== false;
-  state.appSettings.archiveViewMode = ["topic", "type", "all"].includes(state.appSettings.archiveViewMode)
+  state.appSettings.archiveViewMode = ["topic", "type", "all", "graph"].includes(state.appSettings.archiveViewMode)
     ? state.appSettings.archiveViewMode
     : "topic";
+  state.appSettings.archiveGraphDisplayMode = ["graph3d", "graph2d"].includes(state.appSettings.archiveGraphDisplayMode)
+    ? state.appSettings.archiveGraphDisplayMode
+    : "graph3d";
+  state.appSettings.archiveGraphDepth = [1, 2, 3, 4].includes(Number(state.appSettings.archiveGraphDepth))
+    ? Number(state.appSettings.archiveGraphDepth)
+    : 2;
+  state.appSettings.archiveGraphLabelDensity = ["focus", "all", "none"].includes(state.appSettings.archiveGraphLabelDensity)
+    ? state.appSettings.archiveGraphLabelDensity
+    : "focus";
+  hydrateArchiveSemanticEmbeddings(state);
   state.appSettings.focusedTaskIds = Array.isArray(state.appSettings.focusedTaskIds)
     ? state.appSettings.focusedTaskIds.map(Number).filter((id) => state.tasks.some((task) => task.id === id))
     : [];
   state.appSettings.history = Array.isArray(state.appSettings.history) ? state.appSettings.history : [];
   state.appSettings.activityLog = Array.isArray(state.appSettings.activityLog) ? state.appSettings.activityLog : [];
   state.selectedProjectId = saved.selectedProjectId || state.selectedProjectId;
+  state.selectedArchiveResourceId = saved.selectedArchiveResourceId !== undefined ? saved.selectedArchiveResourceId : null;
+  state.archiveEditMode = saved.archiveEditMode !== undefined ? saved.archiveEditMode : false;
   state.projectFilter = saved.projectFilter || state.projectFilter;
   state.detailFilter = saved.detailFilter || state.detailFilter;
   state.viewMode = saved.viewMode || state.viewMode;
