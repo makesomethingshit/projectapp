@@ -38,6 +38,7 @@
     node test_rollup_explanation.mjs
     node test_rollup_explanation_markup.mjs
     node test_encoding_integrity.mjs
+    node test_korean_ui_layout_contract.mjs
     node test_detail_bottleneck_navigation.mjs
     node test_graph_navigation.mjs
     node test_graph_port_labels.mjs

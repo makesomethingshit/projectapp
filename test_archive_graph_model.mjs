@@ -43,7 +43,8 @@ assert.deepEqual(typoNode.backlinks[0], {
   relationStatus: "confirmed",
   relationType: "reference",
   relationStrength: "medium",
-  relationScore: null
+  relationScore: null,
+  relationNote: ""
 });
 assert.equal(model.meta.backlinkCount, 2);
 assert.equal(model.meta.focusDepth, 2);
@@ -84,6 +85,13 @@ assert.equal(chain.nodes.find((node) => node.id === "resource:703").graphDistanc
 assert.equal(chain.nodes.find((node) => node.id === "resource:702").connectedToActive, true);
 assert.equal(chain.nodes.find((node) => node.id === "resource:703").connectedToActive, false);
 
+const directOnly = buildArchiveGraphModel(chainState, { depth: 1, limit: 20, edgeLimit: 20 });
+assert.ok(directOnly.nodes.some((node) => node.id === "resource:701"));
+assert.ok(directOnly.nodes.some((node) => node.id === "resource:702"));
+assert.ok(!directOnly.nodes.some((node) => node.id === "resource:703"), "depth 1 should hide one-step-expanded materials");
+assert.ok(directOnly.links.every((link) => link.source !== "resource:703" && link.target !== "resource:703"));
+assert.ok(directOnly.meta.hiddenByDepthCount >= 1);
+
 const bigState = {
   ...stateLike,
   archiveResources: Array.from({ length: 300 }, (_, index) => ({
@@ -104,5 +112,41 @@ const shallow = buildArchiveGraphModel(bigState, { depth: 1, limit: 80, edgeLimi
 const expanded = buildArchiveGraphModel(bigState, { depth: 3, limit: 80, edgeLimit: 120 });
 assert.ok(shallow.meta.materialCount < expanded.meta.materialCount, "focus depth should change visible graph breadth");
 assert.ok(shallow.links.length <= expanded.links.length, "deeper focus should allow at least as many relations");
+
+const relationState = {
+  selectedArchiveResourceId: 801,
+  projects: [
+    { id: 81, name: "Weekly visual essay", note: "one page image text reference" }
+  ],
+  tasks: [
+    { id: 82, projectId: 81, name: "Design site review", note: "trend useful weekly layout" }
+  ],
+  archiveResources: [
+    { id: 801, name: "Primary gallery", type: "link", path: "https://example.com/a", desc: "weekly design reference", tags: ["design"], semanticEmbedding: [1, 0, 0] },
+    { id: 802, name: "Medium magazine", type: "link", path: "https://example.com/b", desc: "editorial layout reference", tags: ["layout"], semanticEmbedding: [0.96, 0.04, 0] },
+    { id: 803, name: "Weak inspiration", type: "link", path: "https://example.com/c", desc: "loose visual mood", tags: ["mood"], semanticEmbedding: [0.8, 0.2, 0] }
+  ],
+  archiveResourceLinks: [
+    { resourceId: 801, targetType: "task", targetId: 82, relationStrength: "strong", relationScore: 92, relationType: "core", relationNote: "Start here" },
+    { resourceId: 801, targetType: "project", targetId: 81, relationStrength: "weak", relationScore: 34, relationType: "reference", relationNote: "Background only" },
+    { resourceId: 802, targetType: "task", targetId: 82, relationStrength: "medium", relationScore: 61, relationType: "reference", relationNote: "" },
+    { resourceId: 803, targetType: "project", targetId: 81, relationStrength: "weak", relationScore: 28, relationType: "similar", relationNote: "Only mood" }
+  ]
+};
+
+const relationModel = buildArchiveGraphModel(relationState, { depth: 2, limit: 20, edgeLimit: 40 });
+const primary = relationModel.nodes.find((node) => node.id === "resource:801");
+assert.equal(primary.relationLane, "first");
+assert.equal(primary.relationScore, 92);
+assert.ok(Number.isFinite(primary.materialQualityScore), "material quality should be scored separately from relation confidence");
+assert.notEqual(primary.materialQualityScore, primary.relationScore, "material quality should not reuse the strongest relation score");
+assert.equal(primary.hasRelationMemo, true);
+assert.equal(primary.strongestBacklink.label, "Design site review");
+assert.equal(primary.strongestBacklink.relationNote, "Start here");
+assert.ok(primary.backlinks.some((link) => link.targetType === "task" && link.relationScore === 92), "task relation keeps its own confidence");
+assert.ok(primary.backlinks.some((link) => link.targetType === "project" && link.relationScore === 34), "project relation can keep a different confidence for the same material");
+assert.ok(relationModel.meta.relationLaneCounts.first >= 1);
+assert.ok(relationModel.meta.relationLaneCounts.low >= 1);
+assert.ok(relationModel.links.every((link) => Number.isFinite(Number(link.score))));
 
 console.log("archive graph model ok");

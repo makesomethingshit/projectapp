@@ -2,17 +2,10 @@ import assert from "node:assert/strict";
 import { state } from "./state.js";
 import { renderArchiveView } from "./ui-components.js";
 
-function strongRelationRows(html) {
-  const start = html.indexOf("<h3>Strong Relations</h3>");
-  assert.ok(start >= 0, "Strong Relations section should render");
-  const end = html.indexOf("<section", start + 1);
-  const section = html.slice(start, end > start ? end : undefined);
-  return [...section.matchAll(/<button[\s\S]*?archive-graph-insight-row relation[\s\S]*?<strong>([\s\S]*?)<\/strong>[\s\S]*?<b>(\d+)<\/b>([\s\S]*?)<\/span>[\s\S]*?<\/button>/g)]
-    .map((match) => ({
-      title: match[1].replace(/<[^>]+>/g, ""),
-      score: Number(match[2]),
-      reason: match[3].replace(/<[^>]+>/g, "")
-    }));
+function spacePayload(html) {
+  const match = html.match(/<script type="application\/json" data-archive-graph-3d-payload>([\s\S]*?)<\/script>/);
+  assert.ok(match, "Space graph payload should render");
+  return JSON.parse(match[1]);
 }
 
 state.projects = [
@@ -58,11 +51,13 @@ state.selectedArchiveResourceId = 1;
 state.appSettings.archiveViewMode = "graph";
 
 const html = renderArchiveView();
-const rows = strongRelationRows(html);
-assert.ok(rows.length > 0, "relation rows should be scored");
+assert.match(html, /archive-graph-observatory/, "Space observatory inspector should render");
+assert.doesNotMatch(html, /<h3>Strong Relations<\/h3>/, "old relation list should be absorbed into Space observatory");
+const payload = spacePayload(html);
+assert.ok(payload.links.length > 0, "relation links should be scored");
 
-const levinasRows = rows.filter((row) => row.title.toLowerCase().includes("levinas"));
-const typographyRows = rows.filter((row) => row.title.toLowerCase().includes("typography"));
+const levinasRows = payload.nodes.filter((row) => row.label.toLowerCase().includes("levinas"));
+const typographyRows = payload.nodes.filter((row) => row.label.toLowerCase().includes("typography"));
 assert.ok(levinasRows.length > 0, "selected context should surface Levinas rows");
 assert.match(html, /Typography space structure/, "fixture should include unrelated typography material in the graph");
 
@@ -74,8 +69,8 @@ if (typographyRows.length > 0) {
     `Levinas context score ${bestLevinas} should outrank unrelated typography score ${bestTypography}`
   );
   assert.ok(
-    typographyRows.some((row) => row.reason.includes("outside active context")),
-    "unrelated typography backlink should be marked as outside active context"
+    typographyRows.some((row) => row.explicitLinkCount >= 1 && row.strongestBacklink?.label === "Typography system cleanup"),
+    "unrelated typography backlink should stay visible as relation intelligence"
   );
 }
 

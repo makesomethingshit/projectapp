@@ -35,7 +35,7 @@ const ensuredDesignTaskLink = ensureDesignSiteTaskLink();
 const designTask = state.tasks.find((task) => task.name === "디자인 사이트 보기");
 const userDesignTask = state.tasks.find((task) => Number(task.id) === 777);
 const designSiteResources = state.archiveResources.filter((resource) => resource.type === "link" && resource.tags?.includes("디자인 참고 사이트"));
-assert.equal(ensuredDesignTaskLink, designSiteResources.length);
+assert.equal(ensuredDesignTaskLink, designSiteResources.length * 2);
 assert.equal(designTask, undefined);
 assert.ok(userDesignTask, "existing user design site task should be reused");
 assert.equal(designSiteResources.length, 185);
@@ -45,6 +45,35 @@ assert.ok(designSiteResources.every((resource) => state.archiveResourceLinks.som
   && link.targetType === "task"
   && Number(link.targetId) === Number(userDesignTask.id)
 ))));
+const confidenceLinkForPath = (path) => {
+  const resource = designSiteResources.find((item) => item.path === path);
+  assert.ok(resource, `${path} should be seeded as a design reference`);
+  const link = state.archiveResourceLinks.find((item) => (
+    Number(item.resourceId) === Number(resource.id)
+    && item.targetType === "task"
+    && Number(item.targetId) === Number(userDesignTask.id)
+  ));
+  assert.ok(link, `${path} should be linked to the design site task`);
+  return link;
+};
+const itsNiceThatLink = confidenceLinkForPath("https://www.itsnicethat.com/graphic-design");
+assert.equal(itsNiceThatLink.relationStrength, "strong");
+assert.equal(itsNiceThatLink.relationScore, 94);
+assert.ok(itsNiceThatLink.relationNote.includes("\uc8fc\uac04 1\ud398\uc774\uc9c0"));
+const bpandoLink = confidenceLinkForPath("https://bpando.org/logo-reviews/");
+assert.equal(bpandoLink.relationStrength, "strong");
+assert.equal(bpandoLink.relationScore, 86);
+const parksbLink = confidenceLinkForPath("https://parksb.github.io/article/37.html");
+assert.equal(parksbLink.relationStrength, "weak");
+assert.equal(parksbLink.relationScore, 34);
+itsNiceThatLink.relationStrength = "medium";
+itsNiceThatLink.relationScore = 0;
+itsNiceThatLink.relationNote = "";
+const migratedLegacyConfidence = ensureDesignSiteTaskLink();
+assert.equal(migratedLegacyConfidence, 1);
+const migratedItsNiceThatLink = confidenceLinkForPath("https://www.itsnicethat.com/graphic-design");
+assert.equal(migratedItsNiceThatLink.relationStrength, "strong");
+assert.equal(migratedItsNiceThatLink.relationScore, 94);
 const duplicateDesignTaskLink = ensureDesignSiteTaskLink();
 assert.equal(duplicateDesignTaskLink, 0);
 assert.equal(state.tasks.length, 1);

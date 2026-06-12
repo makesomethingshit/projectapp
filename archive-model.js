@@ -108,6 +108,26 @@ function relationMetaFromCandidate(candidate, targetType, status = "confirmed") 
   };
 }
 
+function relationNotesByResourceId(links) {
+  const notes = new Map();
+  (Array.isArray(links) ? links : []).forEach((link) => {
+    const note = typeof link?.relationNote === "string" ? link.relationNote.trim() : "";
+    if (!note) return;
+    const resourceId = Number(link.resourceId);
+    if (!Number.isFinite(resourceId)) return;
+    notes.set(resourceId, [...(notes.get(resourceId) || []), note]);
+  });
+  return notes;
+}
+
+function resourceWithRelationNotes(resource, notes) {
+  if (!notes?.length) return resource;
+  return {
+    ...resource,
+    desc: [resource?.desc, ...notes].filter(Boolean).join(" ")
+  };
+}
+
 function pathSegmentKeys(resource) {
   const path = String(resource?.path || "");
   const parts = path.split(/[\\/]+/).filter(Boolean);
@@ -201,6 +221,7 @@ export function buildAutomaticArchiveResourceLinks(projects, tasks, resources, e
   const links = Array.isArray(existingLinks) ? [...existingLinks] : [];
   const suggestions = [];
   const folderByPath = new Map();
+  const relationNotes = relationNotesByResourceId(existingLinks);
   const existingKeys = new Set(links.map((link) => `${Number(link.resourceId)}:${link.targetType === "task" ? "task" : "project"}:${Number(link.targetId)}`));
   let added = 0;
 
@@ -213,7 +234,8 @@ export function buildAutomaticArchiveResourceLinks(projects, tasks, resources, e
   (Array.isArray(projects) ? projects : []).forEach((project) => {
     const candidates = (Array.isArray(resources) ? resources : [])
       .map((resource) => {
-        const relation = scoreArchiveProjectRelation(resource, project, tasks);
+        const scoringResource = resourceWithRelationNotes(resource, relationNotes.get(Number(resource.id)));
+        const relation = scoreArchiveProjectRelation(scoringResource, project, tasks);
         return { resource, ...relation, folderKey: containingFolderKey(resource) };
       })
       .filter((candidate) => candidate.score >= suggestionThreshold && !candidate.pendingEmbedding)
@@ -276,7 +298,8 @@ export function buildAutomaticArchiveResourceLinks(projects, tasks, resources, e
   (Array.isArray(tasks) ? tasks : []).forEach((task) => {
     const candidates = (Array.isArray(resources) ? resources : [])
       .map((resource) => {
-        const relation = scoreArchiveTaskRelation(resource, task, projects);
+        const scoringResource = resourceWithRelationNotes(resource, relationNotes.get(Number(resource.id)));
+        const relation = scoreArchiveTaskRelation(scoringResource, task, projects);
         return { resource, ...relation, folderKey: containingFolderKey(resource) };
       })
       .filter((candidate) => candidate.score >= suggestionThreshold && !candidate.pendingEmbedding)
@@ -378,9 +401,10 @@ export function normalizeArchiveResourceLinks(nextLinks, projects = [], tasks = 
       relationStatus: RELATION_STATUSES.includes(link.relationStatus) ? link.relationStatus : "confirmed",
       relationType: RELATION_TYPES.includes(link.relationType) ? link.relationType : "reference",
       relationStrength: RELATION_STRENGTHS.includes(link.relationStrength) ? link.relationStrength : "medium",
-      relationScore: Number.isFinite(Number(link.relationScore))
+      relationScore: link.relationScore !== null && link.relationScore !== undefined && link.relationScore !== "" && Number.isFinite(Number(link.relationScore))
         ? Math.max(0, Math.min(100, Math.round(Number(link.relationScore))))
-        : null
+        : null,
+      relationNote: typeof link.relationNote === "string" ? link.relationNote.slice(0, 500) : ""
     }))
     .filter((link) => {
       const targetExists = link.targetType === "task"
@@ -426,7 +450,8 @@ export function migrateProjectResourcesToArchive(projects, archiveResources = []
         relationStatus: "confirmed",
         relationType: "reference",
         relationStrength: "medium",
-        relationScore: null
+        relationScore: null,
+        relationNote: ""
       });
     });
   });
@@ -471,7 +496,8 @@ export function addArchiveResourceLink(links, resourceId, targetType, targetId) 
     relationStatus: "confirmed",
     relationType: "reference",
     relationStrength: "medium",
-    relationScore: null
+    relationScore: null,
+    relationNote: ""
   };
   const exists = (Array.isArray(links) ? links : []).some((link) => {
     return Number(link.resourceId) === nextLink.resourceId
@@ -487,5 +513,44 @@ export function removeArchiveResourceLink(links, resourceId, targetType, targetI
     return !(Number(link.resourceId) === Number(resourceId)
       && (link.targetType === "task" ? "task" : "project") === normalizedType
       && Number(link.targetId) === Number(targetId));
+  });
+}
+
+export function updateArchiveResourceLinkConfidence(links, resourceId, targetType, targetId, strength) {
+  const normalizedType = targetType === "task" ? "task" : "project";
+  const normalizedStrength = RELATION_STRENGTHS.includes(strength) ? strength : "medium";
+  const confidenceScores = {
+    strong: 90,
+    medium: 60,
+    weak: 30
+  };
+
+  return (Array.isArray(links) ? links : []).map((link) => {
+    const matches = Number(link.resourceId) === Number(resourceId)
+      && (link.targetType === "task" ? "task" : "project") === normalizedType
+      && Number(link.targetId) === Number(targetId);
+    if (!matches) return link;
+    return {
+      ...link,
+      relationStatus: "confirmed",
+      relationStrength: normalizedStrength,
+      relationScore: confidenceScores[normalizedStrength]
+    };
+  });
+}
+
+export function updateArchiveResourceLinkNote(links, resourceId, targetType, targetId, note) {
+  const normalizedType = targetType === "task" ? "task" : "project";
+  const nextNote = String(note || "").slice(0, 500);
+
+  return (Array.isArray(links) ? links : []).map((link) => {
+    const matches = Number(link.resourceId) === Number(resourceId)
+      && (link.targetType === "task" ? "task" : "project") === normalizedType
+      && Number(link.targetId) === Number(targetId);
+    if (!matches) return link;
+    return {
+      ...link,
+      relationNote: nextNote
+    };
   });
 }

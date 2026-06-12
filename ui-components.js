@@ -75,6 +75,128 @@ function jsonScriptContent(value) {
     .replace(/\u2029/g, "\\u2029");
 }
 
+const ARCHIVE_GRAPH_KIND_FILTERS = [
+  { value: "all", label: "\uc804\uccb4" },
+  { value: "files", label: "\ud30c\uc77c" },
+  { value: "links", label: "\ub9c1\ud06c" }
+];
+
+const ARCHIVE_GRAPH_STRENGTH_FILTERS = [
+  { value: "all", label: "\uc804\uccb4" },
+  { value: "strong", label: "\uac15\ud55c \uc5f0\uacb0" },
+  { value: "review", label: "\ud655\uc778 \ud544\uc694" }
+];
+
+function getArchiveGraphLinkTier(link) {
+  const score = Number(link?.score);
+  if (Number.isFinite(score) && score >= 72) return "strong";
+  if (Number.isFinite(score) && score <= 58) return "review";
+  return "medium";
+}
+
+function getArchiveGraphNodeTier(node) {
+  const backlinks = Array.isArray(node?.backlinks) ? node.backlinks : [];
+  if (backlinks.some((link) => link?.relationStatus === "suggested" || link?.relationStrength === "weak")) {
+    return "review";
+  }
+  if (backlinks.some((link) => link?.relationStrength === "strong")) {
+    return "strong";
+  }
+  const score = Number(node?.score);
+  if (Number.isFinite(score) && score >= 78) return "strong";
+  if (Number.isFinite(score) && score <= 42) return "review";
+  return "medium";
+}
+
+function archiveGraphNodeMatchesKind(node, kindFilter) {
+  if (kindFilter === "files") return node?.kind === "file";
+  if (kindFilter === "links") return node?.kind === "link";
+  return true;
+}
+
+function archiveGraphNodeMatchesStrength(node, strengthFilter) {
+  if (strengthFilter === "strong") return getArchiveGraphNodeTier(node) === "strong";
+  if (strengthFilter === "review") return getArchiveGraphNodeTier(node) === "review";
+  return true;
+}
+
+function archiveGraphLinkMatchesStrength(link, strengthFilter) {
+  if (strengthFilter === "strong") return getArchiveGraphLinkTier(link) === "strong";
+  if (strengthFilter === "review") return getArchiveGraphLinkTier(link) === "review";
+  return true;
+}
+
+function filterArchiveGraphPayload(payload, filters = {}) {
+  const nodes = Array.isArray(payload?.nodes) ? payload.nodes : [];
+  const links = Array.isArray(payload?.links) ? payload.links : [];
+  const kindFilter = ["all", "files", "links"].includes(filters.kindFilter) ? filters.kindFilter : "all";
+  const strengthFilter = ["all", "strong", "review"].includes(filters.strengthFilter) ? filters.strengthFilter : "all";
+  const activeIds = new Set(nodes.filter((node) => node.active).map((node) => node.id));
+  const nodeById = new Map(nodes.map((node) => [node.id, {
+    ...node,
+    graphFilterTier: getArchiveGraphNodeTier(node)
+  }]));
+  const candidateIds = new Set();
+
+  nodes.forEach((node) => {
+    if (activeIds.has(node.id)) {
+      candidateIds.add(node.id);
+      return;
+    }
+    if (!archiveGraphNodeMatchesKind(node, kindFilter)) return;
+    if (!archiveGraphNodeMatchesStrength(node, strengthFilter)) return;
+    candidateIds.add(node.id);
+  });
+
+  const filteredLinks = links
+    .map((link) => ({
+      ...link,
+      graphFilterTier: getArchiveGraphLinkTier(link)
+    }))
+    .filter((link) => {
+      if (!candidateIds.has(link.source) || !candidateIds.has(link.target)) return false;
+      if (!archiveGraphLinkMatchesStrength(link, strengthFilter)) return false;
+      return true;
+    });
+
+  const connectedIds = new Set(activeIds);
+  filteredLinks.forEach((link) => {
+    connectedIds.add(link.source);
+    connectedIds.add(link.target);
+  });
+  if (!filteredLinks.length && !connectedIds.size) {
+    nodes.slice(0, 1).forEach((node) => connectedIds.add(node.id));
+  }
+
+  const filteredNodes = nodes
+    .filter((node) => candidateIds.has(node.id) && (connectedIds.has(node.id) || activeIds.has(node.id)))
+    .map((node) => nodeById.get(node.id) || node);
+
+  return {
+    ...payload,
+    nodes: filteredNodes,
+    links: filteredLinks,
+    meta: {
+      ...(payload?.meta || {}),
+      nodeCount: filteredNodes.length,
+      relationCount: filteredLinks.length,
+      graphKindFilter: kindFilter,
+      graphStrengthFilter: strengthFilter,
+      graphFileCount: nodes.filter((node) => node.kind === "file").length,
+      graphLinkCount: nodes.filter((node) => node.kind === "link").length,
+      graphStrongCount: nodes.filter((node) => getArchiveGraphNodeTier(node) === "strong").length,
+      graphReviewCount: nodes.filter((node) => getArchiveGraphNodeTier(node) === "review").length,
+      hiddenByGraphFilters: Math.max(0, nodes.length - filteredNodes.length)
+    }
+  };
+}
+
+function archiveGraphFilterButtons(filters, activeValue, dataAttribute) {
+  return filters.map((filter) => `
+    <button type="button" data-${dataAttribute}="${filter.value}" class="${activeValue === filter.value ? "active" : ""}">${escapeHtml(filter.label)}</button>
+  `).join("");
+}
+
 function parseMarkdown(text) {
   if (!text) return "";
   let html = escapeHtml(text);
@@ -263,31 +385,40 @@ export function renderArchiveView() {
       <div class="backlink-item">
         <div class="backlink-item-top">
           <span class="backlink-item-title" title="${escapeHtml(target.name)}">${escapeHtml(target.name)}</span>
-          <button type="button" class="mock-button delete-archive-btn" data-detach-archive-project="${selectedResource.id}" data-project-id="${target.id}" data-target-type="${link.targetType}" title="\uc5f0\uacb0 \ud574\uc81c" style="background:none; border:none; color:var(--coral); cursor:pointer; font-size:14px; line-height:1; padding:0;">\u00d7</button>
+          <button type="button" class="mock-button delete-archive-btn" data-detach-archive-target="${selectedResource.id}" data-target-id="${target.id}" data-target-type="${link.targetType}" title="\uc5f0\uacb0 \ud574\uc81c" style="background:none; border:none; color:var(--coral); cursor:pointer; font-size:14px; line-height:1; padding:0;">\u00d7</button>
         </div>
         <div class="backlink-item-meta">
           <span>${link.targetType === "task" ? "할 일" : "프로젝트"}</span>
+          ${archiveRelationConfidenceBadgeMarkup(link)}
         </div>
+        ${archiveRelationNotePreviewMarkup(link)}
+        ${archiveRelationReasonMarkup(link)}
         ${target.note ? `<p class="backlink-item-desc">${escapeHtml(target.note)}</p>` : ""}
+        ${archiveRelationAdjustMarkup(link)}
       </div>
-    `).join("") : `<p class="notice" style="font-size: 11px; margin-bottom: 12px;">\ud504\ub85c\uc81d\ud2b8\uc640 \uc5f0\uacb0\uc774 \uc5c6\uc2b5\ub2c8\ub2e4.</p>`;
+    `).join("") : `<p class="notice" style="font-size: 11px; margin-bottom: 12px;">\ud560 \uc77c\uacfc \uc5f0\uacb0\uc774 \uc5c6\uc2b5\ub2c8\ub2e4.</p>`;
 
-    const linkedProjectIds = new Set(linked.filter(item => item.link.targetType === "project").map(item => Number(item.target.id)));
-    const availableProjects = state.projects.filter((project) => !linkedProjectIds.has(project.id));
-    const sortedTree = getProjectTreeSorted(state.projects);
-    const availableProjectSet = new Set(availableProjects.map((p) => p.id));
+    const linkedTaskIds = new Set(linked.filter(item => item.link.targetType === "task").map(item => Number(item.target.id)));
+    const sortedProjectIds = getProjectTreeSorted(state.projects).map((item) => item.project.id);
+    const taskProjectRank = new Map(sortedProjectIds.map((id, index) => [Number(id), index]));
+    const availableTasks = state.tasks
+      .filter((task) => !linkedTaskIds.has(Number(task.id)))
+      .sort((a, b) => {
+        const projectOrder = (taskProjectRank.get(Number(a.projectId)) ?? 9999) - (taskProjectRank.get(Number(b.projectId)) ?? 9999);
+        return projectOrder || String(a.name || "").localeCompare(String(b.name || ""), "ko");
+      });
 
-    const optionsMarkup = sortedTree
-      .filter((item) => availableProjectSet.has(item.project.id))
-      .map((item) => {
-        const indent = "\u00A0\u00A0".repeat(item.depth) + (item.depth > 0 ? "\u2514\u2500 " : "");
-        return `<option value="${item.project.id}">${indent}${escapeHtml(item.project.name)}</option>`;
+    const optionsMarkup = availableTasks
+      .map((task) => {
+        const project = getProject(task.projectId);
+        const prefix = project ? `${project.name} \u00b7 ` : "";
+        return `<option value="${task.id}">${escapeHtml(prefix)}${escapeHtml(task.name)}</option>`;
       })
       .join("");
 
-    const selectMarkup = availableProjects.length ? `
-      <select data-attach-archive-project="${selectedResource.id}" aria-label="\uc544\uce74\uc774\ube0c \ud504\ub85c\uc81d\ud2b8 \uc5f0\uacb0" style="width: 100%; padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--text); font-size: 11px; margin-top: 8px;">
-        <option value="">+ \ud504\ub85c\uc81d\ud2b8 \ucd94\uac00 \uc5f0\uacb0</option>
+    const selectMarkup = availableTasks.length ? `
+      <select data-attach-archive-target="${selectedResource.id}" data-target-type="task" aria-label="\uc544\uce74\uc774\ube0c \ud560 \uc77c \uc5f0\uacb0" style="width: 100%; padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--text); font-size: 11px; margin-top: 8px;">
+        <option value="">+ \ud560 \uc77c\uc5d0 \uc5f0\uacb0</option>
         ${optionsMarkup}
       </select>
     ` : "";
@@ -477,6 +608,17 @@ export function renderArchiveView() {
       const terms = [...getTopics(resource), ...getSimilarityTerms(resource)].map((term) => normalizeKey(term));
       return terms.some((term) => selectedTerms.has(term)) ? 3 : 1;
     };
+    const selectedLinks = selectedResource
+      ? archiveLinks
+        .filter((link) => Number(link.resourceId) === Number(selectedResource.id))
+        .map((link) => {
+          const target = link.targetType === "task"
+            ? state.tasks.find((task) => Number(task.id) === Number(link.targetId))
+            : state.projects.find((project) => Number(project.id) === Number(link.targetId));
+          return target ? { link, target } : null;
+        })
+        .filter(Boolean)
+      : [];
     const graphResources = scopeResources
       .filter((resource) => resource.type !== "folder")
       .sort((a, b) => relationScore(b) - relationScore(a) || Number(b.id) - Number(a.id))
@@ -496,7 +638,34 @@ export function renderArchiveView() {
         active: isSelected,
         score: isSelected ? 100 : Math.round(relationScore(resource) * 20),
         semanticScore: semanticSimilarityBetween(resource, selectedResource),
+        relationClass: isSelected ? "selected-resource" : "",
         attrs: `data-select-archive-id="${resource.id}" data-resource-id="${resource.id}" data-resource-path="${escapeHtml(resource.path)}"`
+      });
+    });
+    selectedLinks.slice(0, 8).forEach(({ link, target }, index, list) => {
+      const confidence = archiveRelationConfidenceState(link);
+      const targetType = link.targetType === "task" ? "task" : "project";
+      const nodeId = `${targetType}:${Number(target.id)}`;
+      const row = list.length <= 1 ? 0.5 : index / Math.max(1, list.length - 1);
+      addNode({
+        id: nodeId,
+        type: targetType,
+        label: target.name,
+        meta: targetType === "task" ? "linked task" : "linked project",
+        x: 84,
+        y: 22 + row * 56,
+        active: false,
+        count: confidence.score,
+        relationClass: `direct-relation ${confidence.strength} ${link.relationStatus === "suggested" ? "review" : ""}`,
+        attrs: targetType === "task" ? `data-open-note="${Number(target.id)}"` : `data-select-project="${Number(target.id)}"`
+      });
+      addEdge({
+        from: `resource:${selectedResource.id}`,
+        to: nodeId,
+        type: "link",
+        label: targetType === "task" ? "\ud560\uc77c \uc5f0\uacb0" : "\ud504\ub85c\uc81d\ud2b8 \uc5f0\uacb0",
+        score: confidence.score,
+        ...archiveRelationGraphEdgeData(link)
       });
     });
 
@@ -583,16 +752,18 @@ export function renderArchiveView() {
     const edgeMarkup = edges.map((edge, index) => {
       const from = nodeById.get(edge.from);
       const to = nodeById.get(edge.to);
-      const edgeId = `edge:${index}:${edge.from}->${edge.to}`;
+      const edgeId = edge.relationEdgeKey || `edge:${index}:${edge.from}->${edge.to}`;
       const midX = (from.x + to.x) / 2;
       const midY = (from.y + to.y) / 2;
+      const edgeClass = archiveGraphEdgeClass(edge);
+      const edgeAttrs = archiveGraphEdgeAttrs(edge);
       return `
-        <line class="archive-graph-view-edge ${edge.type}" data-archive-graph-edge="${escapeHtml(edgeId)}" x1="${from.x}" y1="${from.y}" x2="${to.x}" y2="${to.y}" marker-end="url(#archive-graph-arrow-${edge.type || "link"})" />
-        <text class="archive-graph-view-edge-label ${edge.type}" data-archive-graph-edge-label="${escapeHtml(edgeId)}" x="${midX}" y="${midY}">${escapeHtml(edge.label || edge.type || "links")}</text>
+        <line class="archive-graph-view-edge ${edgeClass}" data-archive-graph-edge="${escapeHtml(edgeId)}" ${edgeAttrs} x1="${from.x}" y1="${from.y}" x2="${to.x}" y2="${to.y}" marker-end="url(#archive-graph-arrow-${edge.type || "link"})" />
+        <text class="archive-graph-view-edge-label ${edgeClass}" data-archive-graph-edge-label="${escapeHtml(edgeId)}" ${edgeAttrs} x="${midX}" y="${midY}">${escapeHtml(edge.label || edge.type || "links")}</text>
       `;
     }).join("");
     const nodeMarkup = nodes.map((node) => `
-      <button type="button" class="archive-graph-view-node ${node.type} ${node.active ? "active" : ""} ${(degreeMap.get(node.id) || 0) >= 4 ? "hub" : ""}" ${node.attrs || ""} style="--x:${node.x}%; --y:${node.y}%;" data-archive-graph-node="${escapeHtml(node.id)}" data-archive-node-degree="${degreeMap.get(node.id) || 0}">
+      <button type="button" class="archive-graph-view-node ${node.type} ${node.relationClass || ""} ${node.active ? "active" : ""} ${(degreeMap.get(node.id) || 0) >= 4 ? "hub" : ""}" ${node.attrs || ""} style="--x:${node.x}%; --y:${node.y}%;" data-archive-graph-node="${escapeHtml(node.id)}" data-archive-node-degree="${degreeMap.get(node.id) || 0}">
         <i class="archive-graph-node-mark" aria-hidden="true"></i>
         <span class="archive-graph-node-copy">
           <strong>${escapeHtml(node.label)}</strong>
@@ -710,17 +881,6 @@ export function renderArchiveView() {
           <span>${entry.total || 0} similar materials</span>
         </button>
       `).join("");
-    const selectedLinks = selectedResource
-      ? archiveLinks
-        .filter((link) => Number(link.resourceId) === Number(selectedResource.id))
-        .map((link) => {
-          const target = link.targetType === "task"
-            ? state.tasks.find((task) => Number(task.id) === Number(link.targetId))
-            : state.projects.find((project) => Number(project.id) === Number(link.targetId));
-          return target ? { link, target } : null;
-        })
-        .filter(Boolean)
-      : [];
     const selectedBacklinkRows = selectedLinks.slice(0, 5).map(({ link, target }) => `
       <button type="button" class="archive-graph-insight-row" ${link.targetType === "task" ? `data-open-note="${target.id}"` : `data-select-project="${target.id}"`}>
         <strong>${escapeHtml(target.name)}</strong>
@@ -761,7 +921,8 @@ export function renderArchiveView() {
         x: node.x,
         y: node.y,
         active: Boolean(node.active),
-        degree: degreeMap.get(node.id) || 0
+        degree: degreeMap.get(node.id) || 0,
+        relationClass: node.relationClass || ""
       })),
       links: edges.map((edge) => ({
         source: edge.from,
@@ -769,33 +930,68 @@ export function renderArchiveView() {
         from: edge.from,
         to: edge.to,
         type: edge.type || "link",
-        label: edge.label || edge.type || "link"
+        label: edge.label || edge.type || "link",
+        relationEdgeKey: edge.relationEdgeKey || "",
+        resourceId: edge.resourceId || null,
+        targetType: edge.targetType || "",
+        targetId: edge.targetId || null,
+        relationStrength: edge.relationStrength || "",
+        relationScore: Number.isFinite(Number(edge.relationScore)) ? Number(edge.relationScore) : null,
+        relationStatus: edge.relationStatus || ""
       }))
     };
     const graphDisplayMode = state.appSettings.archiveGraphDisplayMode === "graph2d" ? "graph2d" : "graph3d";
     const graphDepth = [1, 2, 3, 4].includes(Number(state.appSettings.archiveGraphDepth))
       ? Number(state.appSettings.archiveGraphDepth)
       : 2;
-    const graph3dPayload = buildArchiveGraphModel(state, {
+    const graphKindFilter = ["all", "files", "links"].includes(state.appSettings.archiveGraphKindFilter)
+      ? state.appSettings.archiveGraphKindFilter
+      : "all";
+    const graphStrengthFilter = ["all", "strong", "review"].includes(state.appSettings.archiveGraphStrengthFilter)
+      ? state.appSettings.archiveGraphStrengthFilter
+      : "all";
+    const graphFiltersCollapsed = state.appSettings.archiveGraphFiltersCollapsed === true;
+    const rawGraph3dPayload = buildArchiveGraphModel(state, {
       depth: graphDepth,
       limit: 72,
       edgeLimit: 120
     });
+    const graph3dPayload = filterArchiveGraphPayload(rawGraph3dPayload, {
+      kindFilter: graphKindFilter,
+      strengthFilter: graphStrengthFilter
+    });
+    const graphDepthLabel = graphDepth === 1
+      ? "\uc9c1\uc811 \uc5f0\uacb0"
+      : graphDepth === 2
+        ? "\ud55c \ubc88 \ub354"
+        : "\ub113\uac8c \ubcf4\uae30";
+    const graphDepthHelp = graphDepth === 1
+      ? "\uc120\ud0dd \uc790\ub8cc\uc5d0\uc11c \uc5b4\ub514\uae4c\uc9c0 \ud3bc\uce60\uc9c0 \u00b7 \uc9c1\uc811 \uc5f0\uacb0\ub9cc"
+      : graphDepth === 2
+        ? "\uc120\ud0dd \uc790\ub8cc\uc5d0\uc11c \uc5b4\ub514\uae4c\uc9c0 \ud3bc\uce60\uc9c0 \u00b7 \uc9c1\uc811 \uc5f0\uacb0\uc5d0\uc11c \ud55c \ubc88 \ub354 \ud655\uc7a5"
+        : "\uc120\ud0dd \uc790\ub8cc\uc5d0\uc11c \uc5b4\ub514\uae4c\uc9c0 \ud3bc\uce60\uc9c0 \u00b7 \uad00\ub828 \uc790\ub8cc\ub97c \ub113\uac8c \ud3bc\uce68";
+    const graphFilterHelp = graph3dPayload.meta.hiddenByGraphFilters
+      ? `${graph3dPayload.meta.hiddenByGraphFilters} hidden by filters`
+      : "filters show the full local space";
+    const graphKindLabel = ARCHIVE_GRAPH_KIND_FILTERS.find((item) => item.value === graphKindFilter)?.label || "\uc804\uccb4";
+    const graphStrengthLabel = ARCHIVE_GRAPH_STRENGTH_FILTERS.find((item) => item.value === graphStrengthFilter)?.label || "\uc804\uccb4";
+    const graphFilterSummary = `${graphDepthLabel} \u00b7 ${graphKindLabel} \u00b7 ${graphStrengthLabel}`;
+    const graphFiltersDirty = graphDepth !== 2 || graphKindFilter !== "all" || graphStrengthFilter !== "all";
 
     return `
       <section class="archive-graph-view" data-archive-graph-view aria-label="Archive graph view">
         <div class="archive-graph-view-header">
           <div>
-            <p>Material Map</p>
-            <h2>Archive Graph</h2>
-            <span>selected material first, nearest relations next</span>
-            <div class="archive-graph-mode-toggle" role="group" aria-label="Archive graph renderer">
+            <p>Space Observatory</p>
+            <h2>Space</h2>
+            <span>\uc120\ud0dd \uc790\ub8cc\ub97c \uc911\uc2ec\uc73c\ub85c \uc2e0\ub8b0\ub3c4\uc640 \uad00\uacc4\ub97c \uad00\uce21</span>
+            <div class="archive-graph-mode-toggle" role="group" aria-label="Space graph renderer">
               <button type="button" class="${graphDisplayMode === "graph3d" ? "active" : ""}" data-archive-graph-display-mode="graph3d">3D Graph</button>
               <button type="button" class="${graphDisplayMode === "graph2d" ? "active" : ""}" data-archive-graph-display-mode="graph2d">2D Map</button>
             </div>
           </div>
           <dl>
-            <div><dt>materials</dt><dd>${graph3dPayload.meta.materialCount}</dd></div>
+            <div><dt>materials</dt><dd>${rawGraph3dPayload.meta.materialCount}</dd></div>
             <div><dt>visible</dt><dd>${graph3dPayload.meta.nodeCount}</dd></div>
             <div><dt>depth</dt><dd>${graph3dPayload.meta.focusDepth}</dd></div>
             <div><dt>relations</dt><dd>${graph3dPayload.meta.relationCount}</dd></div>
@@ -806,14 +1002,50 @@ export function renderArchiveView() {
           <section class="archive-graph-3d" data-archive-graph-3d aria-label="Archive 3D graph">
             <div class="archive-graph-3d-toolbar">
               <span>Focus neighborhood</span>
-              <div>
-                <button type="button" data-archive-graph-depth="1" class="${graphDepth === 1 ? "active" : ""}">1-step</button>
-                <button type="button" data-archive-graph-depth="2" class="${graphDepth === 2 ? "active" : ""}">2-step</button>
-                <button type="button" data-archive-graph-depth="3" class="${graphDepth === 3 ? "active" : ""}">3-step</button>
+              <small class="archive-graph-depth-note">${escapeHtml(graphDepthHelp)} \u00b7 ${escapeHtml(graphFilterHelp)}</small>
+            </div>
+            <div class="archive-graph-filter-rail${graphFiltersCollapsed ? " collapsed" : ""}" aria-label="Space graph filters">
+              <div class="archive-graph-filter-actions">
+                <button
+                  type="button"
+                  class="archive-graph-filter-summary-button"
+                  data-archive-graph-filters-collapsed="${graphFiltersCollapsed ? "false" : "true"}"
+                  aria-expanded="${graphFiltersCollapsed ? "false" : "true"}"
+                  title="Space filters"
+                >
+                  <span>\ud544\ud130</span>
+                  <strong class="archive-graph-filter-summary">${escapeHtml(graphFilterSummary)}</strong>
+                  <i aria-hidden="true">${graphFiltersCollapsed ? "\u25be" : "\u25b4"}</i>
+                </button>
+                ${graphFiltersDirty ? `
+                  <button
+                    type="button"
+                    class="archive-graph-filter-reset-button"
+                    data-archive-graph-filter-reset
+                    aria-label="Space \ud544\ud130 \ucd08\uae30\ud654"
+                    title="Space \ud544\ud130 \ucd08\uae30\ud654"
+                  >\u21ba</button>
+                ` : ""}
+              </div>
+              <div class="archive-graph-filter-group" role="group" aria-label="\ubc94\uc704">
+                <span>\ubc94\uc704</span>
+                <div>
+                  <button type="button" data-archive-graph-depth="1" class="${graphDepth === 1 ? "active" : ""}">\uc9c1\uc811 \uc5f0\uacb0</button>
+                  <button type="button" data-archive-graph-depth="2" class="${graphDepth === 2 ? "active" : ""}">\ud55c \ubc88 \ub354</button>
+                  <button type="button" data-archive-graph-depth="3" class="${graphDepth === 3 ? "active" : ""}">\ub113\uac8c \ubcf4\uae30</button>
+                </div>
+              </div>
+              <div class="archive-graph-filter-group" role="group" aria-label="\uc790\ub8cc\uc885\ub958">
+                <span>\uc790\ub8cc\uc885\ub958</span>
+                <div>${archiveGraphFilterButtons(ARCHIVE_GRAPH_KIND_FILTERS, graphKindFilter, "archive-graph-kind-filter")}</div>
+              </div>
+              <div class="archive-graph-filter-group" role="group" aria-label="\uc2e0\ub8b0\ub3c4">
+                <span>\uc2e0\ub8b0\ub3c4</span>
+                <div>${archiveGraphFilterButtons(ARCHIVE_GRAPH_STRENGTH_FILTERS, graphStrengthFilter, "archive-graph-strength-filter")}</div>
               </div>
             </div>
             <div class="archive-graph-3d-canvas" data-archive-graph-3d-canvas></div>
-            <div class="archive-graph-3d-hint">selected core \u00b7 direct relations \u00b7 wider references</div>
+            <div class="archive-graph-3d-hint">\uc120\ud0dd \uc790\ub8cc \u00b7 \uc9c1\uc811 \uc5f0\uacb0 \u00b7 \ud55c \ubc88 \ub354 \ud655\uc7a5</div>
             <script type="application/json" data-archive-graph-3d-payload>${jsonScriptContent(graph3dPayload)}</script>
           </section>
           ` : `
@@ -842,45 +1074,7 @@ export function renderArchiveView() {
             <script type="application/json" data-archive-graph-payload>${jsonScriptContent(graphPayload)}</script>
           </div>
           `}
-          <aside class="archive-graph-inspector" aria-label="Archive graph agent index">
-            <section>
-              <h3>Active Context</h3>
-              <strong>${selectedResource ? escapeHtml(selectedResource.name) : "Archive relationships"}</strong>
-              <p>${selectedResource ? escapeHtml(selectedResource.desc || selectedResource.path || "No description") : "This map keeps the visible graph to material-to-material relations. Topics and backlinks stay as side information."}</p>
-            </section>
-            <section>
-              <h3>Strong Relations</h3>
-              ${relationshipStrengthRows || `<p class="archive-graph-inspector-empty">No strong relationships in this scope.</p>`}
-            </section>
-            <section>
-              <h3>Visible Materials</h3>
-              ${materialRows || `<p class="archive-graph-inspector-empty">No materials visible yet.</p>`}
-            </section>
-            <section>
-              <h3>Topic Touchpoints</h3>
-              ${topicRows || `<p class="archive-graph-inspector-empty">No topics yet.</p>`}
-            </section>
-            <section>
-              <h3>Similar Documents</h3>
-              ${similarityRows || `<p class="archive-graph-inspector-empty">No similar document groups in this scope.</p>`}
-            </section>
-            <section>
-              <h3>Folder Candidates</h3>
-              ${folderCandidateRows || `<p class="archive-graph-inspector-empty">No large similarity groups need a folder yet.</p>`}
-            </section>
-            <section>
-              <h3>Relationships</h3>
-              ${relationshipRows || `<p class="archive-graph-inspector-empty">No relationships in this scope.</p>`}
-            </section>
-            <section>
-              <h3>Backlinks</h3>
-              ${selectedBacklinkRows || `<p class="archive-graph-inspector-empty">No project or task backlinks yet.</p>`}
-            </section>
-            <section>
-              <h3>Needs Sorting</h3>
-              ${unclusteredRows || `<p class="archive-graph-inspector-empty">All visible items have tags.</p>`}
-            </section>
-          </aside>
+          ${archiveGraphInspectorMarkup(selectedResource, graph3dPayload, { mode: graphDisplayMode })}
         </div>
         <div class="archive-graph-view-legend">
           <span><i class="file"></i>file</span>
@@ -1299,6 +1493,383 @@ export function workFlowSummaryMarkup(project, allTasks, nextTask, lowTasks) {
   `;
 }
 
+const ARCHIVE_RELATION_CONFIDENCE_OPTIONS = [
+  { strength: "strong", label: "\ub192\uc74c", score: 90 },
+  { strength: "medium", label: "\uc911\uac04", score: 60 },
+  { strength: "weak", label: "\ub0ae\uc74c", score: 30 }
+];
+
+const ARCHIVE_RELATION_CONFIDENCE_SCORE_BY_STRENGTH = {
+  strong: 90,
+  medium: 60,
+  weak: 30
+};
+
+const ARCHIVE_RELATION_EVIDENCE_LABELS = {
+  auto: "\uc790\ub3d9 \uc5f0\uacb0",
+  curation: "\uc790\ub3d9 \ud050\ub808\uc774\uc158",
+  manual: "\uc218\ub3d9 \uc870\uc815",
+  memo: "\uba54\ubaa8 \ubc18\uc601",
+  legacy: "\uae30\uc874 \uc5f0\uacb0",
+  core: "\ud575\uc2ec",
+  evidence: "\uadfc\uac70",
+  similar: "\uc720\uc0ac",
+  reference: "\ucc38\uace0"
+};
+
+function archiveRelationStrengthFromScore(score) {
+  if (score >= 78) return "strong";
+  if (score >= 62) return "medium";
+  return "weak";
+}
+
+function archiveRelationConfidenceState(link, fallback = {}) {
+  const fallbackScore = Number.isFinite(Number(fallback.score)) ? Number(fallback.score) : null;
+  if (Number.isFinite(Number(link?.relationScore))) {
+    const score = Math.max(0, Math.min(100, Math.round(Number(link.relationScore))));
+    const strength = ["strong", "medium", "weak"].includes(link?.relationStrength)
+      ? link.relationStrength
+      : archiveRelationStrengthFromScore(score);
+    return {
+      score,
+      strength
+    };
+  }
+  if (fallbackScore !== null) {
+    const score = Math.max(0, Math.min(100, Math.round(fallbackScore)));
+    return {
+      score,
+      strength: fallback.strength || archiveRelationStrengthFromScore(score)
+    };
+  }
+  const strength = ["strong", "medium", "weak"].includes(link?.relationStrength)
+    ? link.relationStrength
+    : "medium";
+  return {
+    score: ARCHIVE_RELATION_CONFIDENCE_SCORE_BY_STRENGTH[strength],
+    strength
+  };
+}
+
+function archiveRelationScopeLabel(link) {
+  if (link?.targetType === "task") return "\uc774 \uc791\uc5c5\uc5d0\uc11c\uc758 \uc2e0\ub8b0\ub3c4";
+  if (link?.targetType === "project") return "\uc774 \ud504\ub85c\uc81d\ud2b8\uc5d0\uc11c\uc758 \uc2e0\ub8b0\ub3c4";
+  return "\uc774 \uc5f0\uacb0\uc5d0\uc11c\uc758 \uc2e0\ub8b0\ub3c4";
+}
+
+function archiveRelationEvidenceItems(link, fallback = {}) {
+  if (!link) return [];
+  const items = [];
+  const hasStoredScore = Number.isFinite(Number(link.relationScore));
+  const hasFallbackScore = Number.isFinite(Number(fallback.score));
+  if (hasStoredScore && link.relationStatus === "confirmed") {
+    items.push(ARCHIVE_RELATION_EVIDENCE_LABELS.auto);
+  } else if (hasStoredScore) {
+    items.push(ARCHIVE_RELATION_EVIDENCE_LABELS.manual);
+  } else if (hasFallbackScore) {
+    items.push(ARCHIVE_RELATION_EVIDENCE_LABELS.curation);
+  } else {
+    items.push(ARCHIVE_RELATION_EVIDENCE_LABELS.legacy);
+  }
+  if (typeof link.relationNote === "string" && link.relationNote.trim()) {
+    items.push(ARCHIVE_RELATION_EVIDENCE_LABELS.memo);
+  }
+  if (["core", "evidence", "similar", "reference"].includes(link.relationType)) {
+    items.push(ARCHIVE_RELATION_EVIDENCE_LABELS[link.relationType]);
+  }
+  return [...new Set(items)].slice(0, 4);
+}
+
+function archiveRelationEvidenceMarkup(link, fallback = {}) {
+  const items = archiveRelationEvidenceItems(link, fallback);
+  if (!items.length) return "";
+  return `
+    <div class="archive-relation-evidence" aria-label="\uc790\ub8cc \uc5f0\uacb0 \uadfc\uac70">
+      ${items.map((item) => `<span>${escapeHtml(item)}</span>`).join("")}
+    </div>
+  `;
+}
+
+function archiveRelationReasonMarkup(link, fallback = {}) {
+  if (!link) return "";
+  const confidence = archiveRelationConfidenceState(link, fallback);
+  const scopeLabel = archiveRelationScopeLabel(link);
+  const evidence = fallback.reason
+    || link.relationReason
+    || archiveRelationEvidenceItems(link, fallback).join(" / ")
+    || ARCHIVE_RELATION_EVIDENCE_LABELS.legacy;
+  return `<p class="archive-relation-reason">\uadfc\uac70 \u00b7 ${escapeHtml(evidence)} \u00b7 ${scopeLabel} ${confidence.score}</p>`;
+}
+
+function archiveRelationConfidenceBadgeMarkup(link, fallback = {}) {
+  if (!link) return "";
+  const confidence = archiveRelationConfidenceState(link, fallback);
+  const option = ARCHIVE_RELATION_CONFIDENCE_OPTIONS.find((item) => item.strength === confidence.strength);
+  const label = option?.label || "\uc911\uac04";
+  const scopeLabel = archiveRelationScopeLabel(link);
+  return `
+    <span class="archive-relation-badge ${confidence.strength}" aria-label="${scopeLabel} ${confidence.score}">
+      ${label} ${confidence.score}
+    </span>
+  `;
+}
+
+function archiveRelationConfidenceMarkup(link, fallback = {}) {
+  if (!link) return "";
+  const confidence = archiveRelationConfidenceState(link, fallback);
+  const scopeLabel = archiveRelationScopeLabel(link);
+  return `
+    <div class="archive-relation-confidence" aria-label="${scopeLabel}">
+      <span>${scopeLabel} ${confidence.score}</span>
+      <div class="archive-relation-confidence-options">
+        ${ARCHIVE_RELATION_CONFIDENCE_OPTIONS.map((option) => `
+          <button
+            type="button"
+            class="${option.strength === confidence.strength ? "active" : ""}"
+            data-archive-relation-strength="${option.strength}"
+            data-resource-id="${Number(link.resourceId)}"
+            data-target-type="${link.targetType === "task" ? "task" : "project"}"
+            data-target-id="${Number(link.targetId)}"
+            title="${scopeLabel} ${option.label} (${option.score})"
+            aria-pressed="${option.strength === confidence.strength ? "true" : "false"}"
+          >${option.label}</button>
+        `).join("")}
+      </div>
+      ${archiveRelationEvidenceMarkup(link, fallback)}
+    </div>
+  `;
+}
+
+function archiveRelationAdjustMarkup(link, fallback = {}) {
+  if (!link) return "";
+  return `
+    <details class="archive-relation-adjust">
+      <summary>\uc870\uc815</summary>
+      <div class="archive-relation-control-panel">
+        ${archiveRelationConfidenceMarkup(link, fallback)}
+        ${archiveRelationNoteMarkup(link)}
+      </div>
+    </details>
+  `;
+}
+
+function archiveRelationNoteMarkup(link) {
+  if (!link) return "";
+  return `
+    <label class="archive-relation-note">
+      <span>\uba54\ubaa8</span>
+      <textarea
+        rows="2"
+        maxlength="500"
+        data-archive-relation-note="true"
+        data-resource-id="${Number(link.resourceId)}"
+        data-target-type="${link.targetType === "task" ? "task" : "project"}"
+        data-target-id="${Number(link.targetId)}"
+        placeholder="\uba54\ubaa8"
+        aria-label="\uc790\ub8cc \uc5f0\uacb0 \uba54\ubaa8"
+      >${escapeHtml(link.relationNote || "")}</textarea>
+    </label>
+  `;
+}
+
+function archiveRelationNotePreviewMarkup(link) {
+  const note = typeof link?.relationNote === "string" ? link.relationNote.trim() : "";
+  if (!note) return "";
+  return `<p class="archive-relation-note-preview">\uba54\ubaa8 \u00b7 ${escapeHtml(note)}</p>`;
+}
+
+function archiveRelationEdgeKey(link) {
+  const targetType = link?.targetType === "task" ? "task" : "project";
+  return `resource:${Number(link?.resourceId || 0)}:${targetType}:${Number(link?.targetId || 0)}`;
+}
+
+function archiveRelationGraphEdgeData(link) {
+  const confidence = archiveRelationConfidenceState(link);
+  return {
+    relationEdgeKey: archiveRelationEdgeKey(link),
+    resourceId: Number(link.resourceId),
+    targetType: link.targetType === "task" ? "task" : "project",
+    targetId: Number(link.targetId),
+    relationStrength: confidence.strength,
+    relationScore: confidence.score,
+    relationStatus: link.relationStatus || ""
+  };
+}
+
+function archiveGraphEdgeClass(edge) {
+  const strength = ["strong", "medium", "weak"].includes(edge?.relationStrength)
+    ? edge.relationStrength
+    : "";
+  const review = edge?.relationStatus === "suggested" ? "review" : "";
+  const relation = edge?.relationEdgeKey ? "relation-review" : "";
+  return [edge?.type || "link", strength, review, relation].filter(Boolean).join(" ");
+}
+
+function archiveGraphEdgeAttrs(edge) {
+  if (!edge?.relationEdgeKey) return "";
+  return [
+    `data-resource-id="${Number(edge.resourceId)}"`,
+    `data-target-type="${escapeHtml(edge.targetType === "task" ? "task" : "project")}"`,
+    `data-target-id="${Number(edge.targetId)}"`,
+    `data-archive-review-edge="${escapeHtml(edge.relationEdgeKey)}"`
+  ].join(" ");
+}
+
+function archiveRelationReviewPriority(link) {
+  const confidence = archiveRelationConfidenceState(link);
+  if (link?.relationStatus === "suggested" || confidence.strength === "weak" || confidence.score < 50) return 0;
+  if (typeof link?.relationNote === "string" && link.relationNote.trim()) return 1;
+  if (confidence.strength === "strong") return 2;
+  return 3;
+}
+
+function archiveRelationReviewDeskMarkup(backlinks) {
+  if (!backlinks.length) {
+    return `
+      <section class="archive-graph-inspector-card archive-relation-review-desk">
+        <h3>\uac80\ud1a0\ud560 \uc5f0\uacb0</h3>
+        <p>\uc120\ud0dd \uc790\ub8cc\uc5d0 \uc5f0\uacb0\ub41c \ud560 \uc77c\uc774\ub098 \ud504\ub85c\uc81d\ud2b8\uac00 \uc5c6\uc2b5\ub2c8\ub2e4.</p>
+      </section>
+    `;
+  }
+  const rows = [...backlinks]
+    .sort((a, b) => archiveRelationReviewPriority(a.link) - archiveRelationReviewPriority(b.link)
+      || archiveRelationConfidenceState(b.link).score - archiveRelationConfidenceState(a.link).score
+      || String(a.target.name || "").localeCompare(String(b.target.name || ""), "ko"))
+    .slice(0, 8)
+    .map(({ link, target }) => {
+      const confidence = archiveRelationConfidenceState(link);
+      const edgeKey = archiveRelationEdgeKey(link);
+      const targetTypeLabel = link.targetType === "task" ? "\ud560\uc77c" : "\ud504\ub85c\uc81d\ud2b8";
+      return `
+        <article
+          class="archive-relation-review-row ${confidence.strength} ${link.relationStatus === "suggested" ? "review" : ""}"
+          data-archive-review-edge="${escapeHtml(edgeKey)}"
+          data-resource-id="${Number(link.resourceId)}"
+          data-target-type="${link.targetType === "task" ? "task" : "project"}"
+          data-target-id="${Number(link.targetId)}"
+        >
+          <div class="archive-relation-review-top">
+            <strong>${escapeHtml(target.name || "\uc774\ub984 \uc5c6\uc74c")}</strong>
+            ${archiveRelationConfidenceBadgeMarkup(link)}
+          </div>
+          <p class="archive-relation-review-meta">${targetTypeLabel} \u00b7 ${archiveRelationScopeLabel(link)}</p>
+          ${archiveRelationReasonMarkup(link)}
+          ${archiveRelationNotePreviewMarkup(link)}
+          ${archiveRelationAdjustMarkup(link)}
+        </article>
+      `;
+    }).join("");
+  return `
+    <section class="archive-graph-inspector-card archive-relation-review-desk">
+      <h3>\uac80\ud1a0\ud560 \uc5f0\uacb0</h3>
+      <p>\ud655\uc778 \ud544\uc694/\ub0ae\uc74c, \uba54\ubaa8 \uc788\uc74c, \uac15\ud55c \uc5f0\uacb0 \uc21c\uc73c\ub85c \uc815\ub9ac\ud588\uc2b5\ub2c8\ub2e4.</p>
+      <div class="archive-relation-review-list">
+        ${rows}
+      </div>
+    </section>
+  `;
+}
+
+function selectedArchiveBacklinks(resourceId) {
+  const projectsById = new Map((state.projects || []).map((project) => [Number(project.id), project]));
+  const tasksById = new Map((state.tasks || []).map((task) => [Number(task.id), task]));
+  return (state.archiveResourceLinks || [])
+    .filter((link) => Number(link.resourceId) === Number(resourceId))
+    .map((link) => {
+      const target = link.targetType === "task"
+        ? tasksById.get(Number(link.targetId))
+        : projectsById.get(Number(link.targetId));
+      if (!target) return null;
+      return { link, target };
+    })
+    .filter(Boolean)
+    .sort((a, b) => archiveRelationConfidenceState(b.link).score - archiveRelationConfidenceState(a.link).score);
+}
+
+function archiveGraphLaneMetricsMarkup(laneCounts = {}) {
+  const reviewCount = Number(laneCounts.review || 0) + Number(laneCounts.unverified || 0);
+  return `
+    <dl class="archive-graph-lane-metrics">
+      <div><dt>\uba3c\uc800 \ubcfc \uac83</dt><dd>${Number(laneCounts.first || 0)}</dd></div>
+      <div><dt>\uc911\uac04</dt><dd>${Number(laneCounts.middle || 0)}</dd></div>
+      <div><dt>\ub0ae\uc74c</dt><dd>${Number(laneCounts.low || 0)}</dd></div>
+      <div><dt>\ud655\uc778 \ud544\uc694</dt><dd>${reviewCount}</dd></div>
+    </dl>
+  `;
+}
+
+function archiveGraphQualityLabel(score) {
+  const value = Number(score);
+  if (!Number.isFinite(value)) return "\ubbf8\ud655\uc778";
+  if (value >= 78) return "\ub192\uc74c";
+  if (value >= 50) return "\uc911\uac04";
+  return "\ub0ae\uc74c";
+}
+
+function archiveGraphInspectorMarkup(selectedResource, graph3dPayload, options = {}) {
+  const backlinks = selectedResource ? selectedArchiveBacklinks(selectedResource.id) : [];
+  const primaryItem = backlinks[0] || null;
+  const primary = primaryItem?.link || null;
+  const is2dMap = options.mode === "graph2d";
+  const selectedNode = selectedResource
+    ? (graph3dPayload?.nodes || []).find((node) => Number(node.resourceId) === Number(selectedResource.id))
+    : null;
+  const qualityScore = Number.isFinite(Number(selectedNode?.materialQualityScore))
+    ? Number(selectedNode.materialQualityScore)
+    : null;
+  const laneCounts = graph3dPayload?.meta?.relationLaneCounts || {};
+  const visibleRelationCount = Number(graph3dPayload?.meta?.relationCount || 0);
+  const materialCount = Number(graph3dPayload?.meta?.nodeCount || 0);
+  const primaryTargetLabel = primaryItem?.target?.name || "";
+  return `
+    <aside class="archive-graph-inspector archive-graph-observatory" aria-label="Space observatory inspector">
+      <section class="archive-graph-inspector-card">
+        <p class="archive-graph-kicker">Space Observatory</p>
+        <h3>${selectedResource ? "\uc120\ud0dd \uc790\ub8cc" : "\uc790\ub8cc \uad00\uce21"}</h3>
+        <strong>${selectedResource ? escapeHtml(selectedResource.name) : "\uc120\ud0dd\ub41c \uc790\ub8cc\uac00 \uc5c6\uc2b5\ub2c8\ub2e4"}</strong>
+        <p>${selectedResource ? escapeHtml(selectedResource.desc || selectedResource.path || "\uc124\uba85 \uc5c6\uc74c") : "\ubcc4\uc744 \uc120\ud0dd\ud558\uba74 \uc2e0\ub8b0\ub3c4, \uba54\ubaa8, \uc5f0\uacb0\ub41c \uc791\uc5c5\uc744 \ud55c\ubc88\uc5d0 \ubcf4\uc5ec\uc90d\ub2c8\ub2e4."}</p>
+        <div class="archive-graph-observatory-counts" aria-label="Space visible summary">
+          ${qualityScore !== null ? `<span>\uc790\ub8cc \ud488\uc9c8 ${escapeHtml(archiveGraphQualityLabel(qualityScore))} ${qualityScore}</span>` : ""}
+          <span>${materialCount} materials</span>
+          <span>${visibleRelationCount} relations</span>
+        </div>
+      </section>
+      ${selectedResource && primary ? `
+        <section class="archive-graph-inspector-card">
+          <h3>\uac00\uc7a5 \uac15\ud55c \uc5f0\uacb0</h3>
+          <p class="archive-graph-relation-scope">${archiveRelationScopeLabel(primary)} \u00b7 ${primary.targetType === "task" ? "\ud560\uc77c" : "\ud504\ub85c\uc81d\ud2b8"}${primaryTargetLabel ? ` \u00b7 ${escapeHtml(primaryTargetLabel)}` : ""}</p>
+          ${archiveRelationConfidenceBadgeMarkup(primary)}
+          ${archiveRelationReasonMarkup(primary)}
+          ${archiveRelationNotePreviewMarkup(primary)}
+          ${archiveRelationAdjustMarkup(primary)}
+        </section>
+      ` : ""}
+      ${is2dMap ? archiveRelationReviewDeskMarkup(backlinks) : ""}
+      <section class="archive-graph-inspector-card">
+        <h3>\ud050\ub808\uc774\uc158 \ubd84\ud3ec</h3>
+        ${archiveGraphLaneMetricsMarkup(laneCounts)}
+      </section>
+      ${selectedResource ? `
+        <section class="archive-graph-inspector-card">
+          <h3>\uc5f0\uacb0\ub41c \uc791\uc5c5</h3>
+          ${backlinks.length ? backlinks.slice(0, 6).map(({ link, target }) => `
+            <article class="archive-graph-linked-work">
+              <strong>${escapeHtml(target.name || "\uc774\ub984 \uc5c6\uc74c")}</strong>
+              <span>${link.targetType === "task" ? "\ud560\uc77c" : "\ud504\ub85c\uc81d\ud2b8"} \u00b7 ${archiveRelationScopeLabel(link)}</span>
+              ${archiveRelationConfidenceBadgeMarkup(link)}
+            </article>
+          `).join("") : `<p>\uc5f0\uacb0\ub41c \uc791\uc5c5\uc774 \uc5c6\uc2b5\ub2c8\ub2e4.</p>`}
+        </section>
+        <div class="archive-graph-context-actions">
+          <button type="button" id="toggleArchiveEditMode">\uc790\ub8cc \ud3b8\uc9d1</button>
+          <button type="button" data-open-archive-path="${escapeHtml(selectedResource.path)}" data-archive-type="${selectedResource.type}">\uc790\ub8cc \uc5f4\uae30</button>
+        </div>
+      ` : ""}
+    </aside>
+  `;
+}
+
 export function renderLinkedArchivePanel(project, allTasks = []) {
   const projectId = Number(project?.id);
   const taskIds = new Set(allTasks.map((task) => Number(task?.id || 0)));
@@ -1319,14 +1890,20 @@ export function renderLinkedArchivePanel(project, allTasks = []) {
 
   const typeLabel = (type) => type === "folder" ? "\ud3f4\ub354" : type === "link" ? "\ub9c1\ud06c" : "\ud30c\uc77c";
   const listMarkup = linked.length ? linked.map(({ link, resource, task }) => `
-    <div class="archive-resource-row js-archive-item" data-resource-id="${resource.id}" data-resource-path="${escapeHtml(resource.path)}" style="display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 8px; box-shadow: var(--shadow-sm);">
+    <div class="archive-resource-row js-archive-item" data-resource-id="${resource.id}" data-resource-path="${escapeHtml(resource.path)}" style="display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 8px; box-shadow: var(--shadow-sm);">
       <div style="text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; margin-right: 8px;">
         <strong style="display: block; font-size: 12px; color: var(--text);">${typeLabel(resource.type)} \u00b7 ${escapeHtml(resource.name)}</strong>
         <span class="meta-chip ${link.targetType === "task" ? "" : "quiet-chip"}" style="display: inline-flex; margin-top: 5px;">${link.targetType === "task" ? `할 일 · ${escapeHtml(task?.name || "연결된 할 일")}` : "현재 프로젝트에 연결"}</span>
+        ${archiveRelationNotePreviewMarkup(link)}
+        ${archiveRelationReasonMarkup(link)}
         ${resource.desc ? `<p style="margin: 5px 0 0 0; font-size: 10px; color: var(--muted);">${escapeHtml(resource.desc)}</p>` : ""}
         <small style="display: block; font-size: 9px; color: var(--muted); margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(resource.path)}</small>
       </div>
-      <button type="button" class="mock-button green-command" data-open-archive-path="${escapeHtml(resource.path)}" data-archive-type="${resource.type}" style="padding: 4px 8px; font-size: 10.5px; border-radius: 4px; border: 1px solid var(--border); background: var(--panel-raised); cursor: pointer; color: var(--text); font-weight: 600; flex-shrink: 0;">\uc5f4\uae30</button>
+      <div class="archive-resource-actions">
+        ${archiveRelationConfidenceBadgeMarkup(link)}
+        <button type="button" class="mock-button green-command" data-open-archive-path="${escapeHtml(resource.path)}" data-archive-type="${resource.type}" style="padding: 4px 8px; font-size: 10.5px; border-radius: 4px; border: 1px solid var(--border); background: var(--panel-raised); cursor: pointer; color: var(--text); font-weight: 600; flex-shrink: 0;">\uc5f4\uae30</button>
+        ${archiveRelationAdjustMarkup(link)}
+      </div>
     </div>
   `).join("") : `<p class="notice" style="font-size: 11px; color: var(--muted); padding: 10px; border: 1px dashed var(--border); border-radius: 8px; margin: 0;">\uc5f0\uacb0\ub41c \uc544\uce74\uc774\ube0c\uac00 \uc5c6\uc2b5\ub2c8\ub2e4.</p>`;
 
@@ -1347,6 +1924,7 @@ const DESIGN_REFERENCE_TAG_KEYWORDS = ["design", "branding", "typography", "port
 const DESIGN_CURATION_MIN_LINKS = 20;
 const DESIGN_CURATION_FIRST_LIMIT = 12;
 const DESIGN_CURATION_LANE_LIMIT = 18;
+const DESIGN_CURATION_VISIBLE_LIMIT = 5;
 
 const DESIGN_LABELS = {
   title: "&#46356;&#51088;&#51064; &#49324;&#51060;&#53944; &#53328;&#47112;&#51060;&#49496;",
@@ -1354,11 +1932,15 @@ const DESIGN_LABELS = {
   policy: "&#44540;&#44144; &#50630;&#45716; &#47553;&#53356;&#45716; &#49345;&#50948; &#52628;&#52380;&#50640;&#49436; &#51228;&#50808;",
   first: "&#47676;&#51200; &#48380; &#44163;",
   firstSummary: "&#49888;&#47280;&#46020; &#45458;&#51020;&#47564; &#49345;&#50948;&#47196; &#50732;&#47548;",
+  mediumLane: "&#51473;&#44036; &#49888;&#47280;&#46020;",
+  mediumLaneSummary: "&#54596;&#50836;&#54620; &#44221;&#50864; &#54869;&#51064;&#54624; &#54980;&#48372;",
+  lowLane: "&#45230;&#51020; &#49888;&#47280;&#46020;",
+  lowLaneSummary: "&#51649;&#51217; &#45230;&#51020;&#51004;&#47196; &#54869;&#51221;&#54620; &#47553;&#53356;",
   structure: "&#44396;&#51312; &#52280;&#44256;",
   structureSummary: "&#48652;&#47004;&#46377;, &#53440;&#51077;, &#47112;&#51060;&#50500;&#50883; &#48516;&#49437;&#50857;",
   vibe: "&#44048;&#44033; &#52280;&#44256;",
   vibeSummary: "&#53944;&#47116;&#46300;&#50752; &#49884;&#44033; &#47924;&#46300; &#54869;&#51064;&#50857;",
-  review: "&#54869;&#51064; &#54596;&#50836;",
+  review: "&#48120;&#54869;&#51064;",
   confidence: "&#49888;&#47280;&#46020;",
   high: "&#45458;&#51020;",
   medium: "&#51473;&#44036;",
@@ -1366,7 +1948,9 @@ const DESIGN_LABELS = {
   highHint: "&#49345;&#50948; &#52628;&#52380; &#44032;&#45733;",
   mediumHint: "&#47785;&#51201; &#54869;&#51064; &#54980; &#49324;&#50857;",
   lowHint: "&#54869;&#51064; &#54596;&#50836;",
-  noPath: "&#44221;&#47196; &#50630;&#51020;"
+  noPath: "&#44221;&#47196; &#50630;&#51020;",
+  emptyLane: "&#54644;&#45817; &#47553;&#53356; &#50630;&#51020;",
+  more: "&#44060; &#45908; &#48372;&#44592;"
 };
 
 const DESIGN_CONFIDENCE_LABELS = {
@@ -1380,6 +1964,18 @@ const DESIGN_CONFIDENCE_HINTS = {
   medium: DESIGN_LABELS.mediumHint,
   low: DESIGN_LABELS.lowHint
 };
+
+const DESIGN_CONFIDENCE_SCORES = {
+  high: 90,
+  medium: 60,
+  low: 30
+};
+
+function designConfidenceClassFromRelationStrength(strength) {
+  if (strength === "strong") return "high";
+  if (strength === "weak") return "low";
+  return "medium";
+}
 
 function getResourceHost(resource) {
   try {
@@ -1423,7 +2019,7 @@ function getDesignReferenceSignal(resource) {
     lane: "review",
     confidence: "low",
     confidenceClass: "low",
-    evidence: "Source or purpose needs review",
+    evidence: "\ucd9c\ucc98\ub098 \uc6a9\ub3c4 \ud655\uc778 \ud544\uc694",
     rank: 10
   };
 
@@ -1433,8 +2029,18 @@ function getDesignReferenceSignal(resource) {
       lane: "structure",
       confidence: "high",
       confidenceClass: "high",
-      evidence: "Known branding or type reference",
+      evidence: "\ube0c\ub79c\ub529/\ud0c0\uc785 \uc804\ubb38 \ucc38\uace0\uc6d0",
       rank: 100
+    };
+  }
+  if (includesAny(text, ["itsnicethat", "it's nice that", "publicdomainreview", "public domain review"])) {
+    return {
+      ...signal,
+      lane: "vibe",
+      confidence: "high",
+      confidenceClass: "high",
+      evidence: "\uc774\ubbf8\uc9c0+\ud14d\uc2a4\ud2b8 \ud3b8\uc9d1 \ucc38\uace0\uc5d0 \uc801\ud569",
+      rank: 98
     };
   }
   if (includesAny(text, ["siteinspire", "awwwards", "land-book", "land-book.com", "godly", "lapa", "onepagelove", "minimal.gallery", "hoverstat", "httpster", "readymag", "muzli"])) {
@@ -1443,7 +2049,7 @@ function getDesignReferenceSignal(resource) {
       lane: "vibe",
       confidence: "high",
       confidenceClass: "high",
-      evidence: "Known web design gallery",
+      evidence: "\uac80\uc99d\ub41c \uc6f9\ub514\uc790\uc778 \uac24\ub7ec\ub9ac",
       rank: 95
     };
   }
@@ -1453,7 +2059,7 @@ function getDesignReferenceSignal(resource) {
       lane: "structure",
       confidence: "medium",
       confidenceClass: "medium",
-      evidence: "Useful for UI pattern reference",
+      evidence: "UI \ud328\ud134 \ucc38\uace0\uc5d0 \uc720\uc6a9",
       rank: 75
     };
   }
@@ -1463,7 +2069,7 @@ function getDesignReferenceSignal(resource) {
       lane: "vibe",
       confidence: "medium",
       confidenceClass: "medium",
-      evidence: "Useful for visual mood reference",
+      evidence: "\uc2dc\uac01 \ubb34\ub4dc \ucc38\uace0\uc5d0 \uc720\uc6a9",
       rank: 70
     };
   }
@@ -1473,7 +2079,7 @@ function getDesignReferenceSignal(resource) {
       lane: "structure",
       confidence: "medium",
       confidenceClass: "medium",
-      evidence: "Contains structure-analysis keywords",
+      evidence: "\uad6c\uc870 \ubd84\uc11d \ud0a4\uc6cc\ub4dc \ud3ec\ud568",
       rank: 65
     };
   }
@@ -1482,7 +2088,7 @@ function getDesignReferenceSignal(resource) {
       ...signal,
       confidence: "low",
       confidenceClass: "low",
-      evidence: "One-off article or task context needs review",
+      evidence: "\ub2e8\ubc1c\uc131 \uae00\uc774\ub77c \uc791\uc5c5 \ub9e5\ub77d \ud655\uc778 \ud544\uc694",
       rank: 20
     };
   }
@@ -1491,7 +2097,7 @@ function getDesignReferenceSignal(resource) {
       ...signal,
       confidence: "low",
       confidenceClass: "low",
-      evidence: "Domain exists but curation evidence is weak",
+      evidence: "\ub3c4\uba54\uc778\uc740 \uc788\uc9c0\ub9cc \ud050\ub808\uc774\uc158 \uadfc\uac70\uac00 \uc57d\ud568",
       rank: 30
     };
   }
@@ -1499,12 +2105,34 @@ function getDesignReferenceSignal(resource) {
   return signal;
 }
 
-function buildDesignCuration(resources) {
+function buildDesignCuration(resources, linkByResourceId = new Map()) {
   const signaled = resources
-    .filter(isDesignReferenceResource)
+    .filter((resource) => resource.type === "link")
     .map(getDesignReferenceSignal)
-    .sort((a, b) => b.rank - a.rank || String(a.resource.name).localeCompare(String(b.resource.name)));
+    .map((item) => {
+      const link = linkByResourceId.get(Number(item.resource.id));
+      const manualConfidence = Number.isFinite(Number(link?.relationScore));
+      const confidence = archiveRelationConfidenceState(link, {
+        score: DESIGN_CONFIDENCE_SCORES[item.confidenceClass],
+        strength: item.confidenceClass === "high" ? "strong" : item.confidenceClass === "low" ? "weak" : "medium"
+      });
+      const confidenceClass = designConfidenceClassFromRelationStrength(confidence.strength);
+      return {
+        ...item,
+        confidence: confidenceClass,
+        confidenceClass,
+        confidenceScore: confidence.score,
+        manualConfidence
+      };
+    })
+    .sort((a, b) => b.confidenceScore - a.confidenceScore || b.rank - a.rank || String(a.resource.name).localeCompare(String(b.resource.name)));
   const used = new Set();
+  const manualFirst = (items) => [...items].sort((a, b) => (
+    Number(b.manualConfidence) - Number(a.manualConfidence)
+    || b.confidenceScore - a.confidenceScore
+    || b.rank - a.rank
+    || String(a.resource.name).localeCompare(String(b.resource.name))
+  ));
   const take = (items, limit) => {
     const picked = [];
     for (const item of items) {
@@ -1516,13 +2144,21 @@ function buildDesignCuration(resources) {
     return picked;
   };
   const reliable = signaled.filter((item) => item.confidenceClass === "high");
-  const first = take(reliable, DESIGN_CURATION_FIRST_LIMIT);
+  const first = take(manualFirst(reliable), DESIGN_CURATION_FIRST_LIMIT);
+  const medium = take(
+    manualFirst(signaled.filter((item) => item.confidenceClass === "medium")),
+    DESIGN_CURATION_LANE_LIMIT
+  );
+  const low = take(
+    manualFirst(signaled.filter((item) => item.confidenceClass === "low" && item.manualConfidence)),
+    DESIGN_CURATION_LANE_LIMIT
+  );
   const structure = take(
-    signaled.filter((item) => item.lane === "structure" && item.confidenceClass !== "low"),
+    manualFirst(signaled.filter((item) => item.lane === "structure" && item.confidenceClass !== "low")),
     DESIGN_CURATION_LANE_LIMIT
   );
   const vibe = take(
-    signaled.filter((item) => item.lane === "vibe" && item.confidenceClass !== "low"),
+    manualFirst(signaled.filter((item) => item.lane === "vibe" && item.confidenceClass !== "low")),
     DESIGN_CURATION_LANE_LIMIT
   );
   const review = signaled.filter((item) => !used.has(item.resource.id));
@@ -1531,6 +2167,8 @@ function buildDesignCuration(resources) {
     total: signaled.length,
     sections: [
       { key: "first", label: DESIGN_LABELS.first, summary: DESIGN_LABELS.firstSummary, items: first },
+      { key: "medium", label: DESIGN_LABELS.mediumLane, summary: DESIGN_LABELS.mediumLaneSummary, items: medium },
+      { key: "low", label: DESIGN_LABELS.lowLane, summary: DESIGN_LABELS.lowLaneSummary, items: low },
       { key: "structure", label: DESIGN_LABELS.structure, summary: DESIGN_LABELS.structureSummary, items: structure },
       { key: "vibe", label: DESIGN_LABELS.vibe, summary: DESIGN_LABELS.vibeSummary, items: vibe }
     ],
@@ -1550,17 +2188,29 @@ export function taskLauncherMarkup(taskId) {
   }
 
   const project = getProject(task.projectId);
-  const resources = (state.archiveResourceLinks || [])
+  const linkedResources = (state.archiveResourceLinks || [])
     .filter((link) => link.targetType === "task" && Number(link.targetId) === Number(task.id))
-    .map((link) => (state.archiveResources || []).find((resource) => Number(resource.id) === Number(link.resourceId)))
+    .map((link) => {
+      const resource = (state.archiveResources || []).find((item) => Number(item.id) === Number(link.resourceId));
+      return resource ? { link, resource } : null;
+    })
     .filter(Boolean);
+  const resources = linkedResources.map((entry) => entry.resource);
+  const linkByResourceId = new Map(linkedResources.map((entry) => [Number(entry.resource.id), entry.link]));
   const useDesignCuration = shouldShowDesignCuration(task, resources);
-  const designCuration = useDesignCuration ? buildDesignCuration(resources) : null;
+  const designCuration = useDesignCuration ? buildDesignCuration(resources, linkByResourceId) : null;
+  const sortedResources = [...resources].sort((a, b) => {
+    const aLink = linkByResourceId.get(Number(a.id));
+    const bLink = linkByResourceId.get(Number(b.id));
+    const aScore = archiveRelationConfidenceState(aLink).score;
+    const bScore = archiveRelationConfidenceState(bLink).score;
+    return bScore - aScore || String(a.name).localeCompare(String(b.name), "ko");
+  });
   const grouped = {
-    file: resources.filter((resource) => resource.type === "file"),
-    folder: resources.filter((resource) => resource.type === "folder"),
-    link: resources.filter((resource) => resource.type === "link" && !(useDesignCuration && isDesignReferenceResource(resource))),
-    other: resources.filter((resource) => !["file", "folder", "link"].includes(resource.type))
+    file: sortedResources.filter((resource) => resource.type === "file"),
+    folder: sortedResources.filter((resource) => resource.type === "folder"),
+    link: sortedResources.filter((resource) => resource.type === "link" && !useDesignCuration),
+    other: sortedResources.filter((resource) => !["file", "folder", "link"].includes(resource.type))
   };
   const groupLabels = {
     file: "\uc8fc\uc694 \ud30c\uc77c",
@@ -1573,10 +2223,16 @@ export function taskLauncherMarkup(taskId) {
     <div class="task-launcher-resource js-archive-item" data-resource-id="${resource.id}" data-resource-path="${escapeHtml(resource.path)}">
       <div class="task-launcher-resource-main">
         <strong>${escapeHtml(resource.name)}</strong>
+        ${archiveRelationNotePreviewMarkup(linkByResourceId.get(Number(resource.id)))}
+        ${archiveRelationReasonMarkup(linkByResourceId.get(Number(resource.id)))}
         ${resource.desc ? `<span>${escapeHtml(resource.desc)}</span>` : ""}
         <small>${escapeHtml(resource.path || "\uacbd\ub85c \uc5c6\uc74c")}</small>
       </div>
-      <button type="button" class="task-launcher-open" data-open-archive-path="${escapeHtml(resource.path)}" data-archive-type="${resource.type}" ${resource.path ? "" : "disabled"}>${typeLabel(resource.type)} \uc5f4\uae30</button>
+      <div class="task-launcher-resource-actions">
+        ${archiveRelationConfidenceBadgeMarkup(linkByResourceId.get(Number(resource.id)))}
+        <button type="button" class="task-launcher-open" data-open-archive-path="${escapeHtml(resource.path)}" data-archive-type="${resource.type}" ${resource.path ? "" : "disabled"}>${typeLabel(resource.type)} \uc5f4\uae30</button>
+        ${archiveRelationAdjustMarkup(linkByResourceId.get(Number(resource.id)))}
+      </div>
     </div>
   `;
   const curatedRow = (item) => {
@@ -1585,6 +2241,12 @@ export function taskLauncherMarkup(taskId) {
       <div class="task-launcher-resource task-launcher-curated-resource js-archive-item" data-resource-id="${resource.id}" data-resource-path="${escapeHtml(resource.path)}">
         <div class="task-launcher-resource-main">
           <strong>${escapeHtml(resource.name)}</strong>
+          ${archiveRelationNotePreviewMarkup(linkByResourceId.get(Number(resource.id)))}
+          ${archiveRelationReasonMarkup(linkByResourceId.get(Number(resource.id)), {
+            reason: item.evidence,
+            score: item.confidenceScore,
+            strength: item.confidenceClass === "high" ? "strong" : item.confidenceClass === "low" ? "weak" : "medium"
+          })}
           <span>${escapeHtml(item.evidence)}</span>
           <small>${resource.path ? escapeHtml(resource.path) : DESIGN_LABELS.noPath}</small>
           <div class="task-launcher-curation-meta">
@@ -1592,8 +2254,33 @@ export function taskLauncherMarkup(taskId) {
             <em>${DESIGN_CONFIDENCE_HINTS[item.confidenceClass]}</em>
           </div>
         </div>
-        <button type="button" class="task-launcher-open" data-open-archive-path="${escapeHtml(resource.path)}" data-archive-type="${resource.type}" ${resource.path ? "" : "disabled"}>${typeLabel(resource.type)} &#50676;&#44592;</button>
+        <div class="task-launcher-resource-actions">
+          ${archiveRelationConfidenceBadgeMarkup(linkByResourceId.get(Number(resource.id)), {
+            score: item.confidenceScore,
+            strength: item.confidenceClass === "high" ? "strong" : item.confidenceClass === "low" ? "weak" : "medium"
+          })}
+          <button type="button" class="task-launcher-open" data-open-archive-path="${escapeHtml(resource.path)}" data-archive-type="${resource.type}" ${resource.path ? "" : "disabled"}>${typeLabel(resource.type)} &#50676;&#44592;</button>
+          ${archiveRelationAdjustMarkup(linkByResourceId.get(Number(resource.id)), {
+            score: item.confidenceScore,
+            strength: item.confidenceClass === "high" ? "strong" : item.confidenceClass === "low" ? "weak" : "medium"
+          })}
+        </div>
       </div>
+    `;
+  };
+  const curatedRowsMarkup = (items) => {
+    const visible = items.slice(0, DESIGN_CURATION_VISIBLE_LIMIT);
+    const hidden = items.slice(DESIGN_CURATION_VISIBLE_LIMIT);
+    return `
+      ${visible.map(curatedRow).join("")}
+      ${hidden.length ? `
+        <details class="task-launcher-overflow-details">
+          <summary>${hidden.length}${DESIGN_LABELS.more}</summary>
+          <div class="task-launcher-list">
+            ${hidden.map(curatedRow).join("")}
+          </div>
+        </details>
+      ` : ""}
     `;
   };
   const curationMarkup = designCuration?.total ? `
@@ -1607,13 +2294,15 @@ export function taskLauncherMarkup(taskId) {
       </div>
       <div class="task-launcher-curation-grid">
         ${designCuration.sections
-          .filter((section) => section.items.length)
+          .filter((section) => section.items.length || section.key === "medium" || section.key === "low")
           .map((section) => `
             <section class="task-launcher-curation-lane" data-curation-lane="${section.key}">
               <h3>${section.label} <span>${section.items.length}</span></h3>
               <p>${section.summary}</p>
               <div class="task-launcher-list">
-                ${section.items.map(curatedRow).join("")}
+                ${section.items.length
+                  ? curatedRowsMarkup(section.items)
+                  : `<p class="task-launcher-lane-empty">${DESIGN_LABELS.emptyLane}</p>`}
               </div>
             </section>
           `).join("")}

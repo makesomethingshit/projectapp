@@ -60,17 +60,54 @@ export function initArchiveGraphD3() {
     .attr("viewBox", `0 0 ${width} ${height}`)
     .attr("preserveAspectRatio", "xMidYMid meet");
 
-  const linkKey = (link) => `${link.from || link.source}->${link.to || link.target}:${link.type || "link"}`;
+  const linkKey = function linkKey(link) {
+    if (!link) {
+      return this?.getAttribute?.("data-archive-graph-edge")
+        || this?.getAttribute?.("data-archive-graph-edge-label")
+        || "";
+    }
+    if (link.relationEdgeKey) return link.relationEdgeKey;
+    return `${link.from || link.source}->${link.to || link.target}:${link.type || "link"}`;
+  };
+  const relationLinkClass = (link) => [
+    link.type || "link",
+    ["strong", "medium", "weak"].includes(link.relationStrength) ? link.relationStrength : "",
+    link.relationStatus === "suggested" ? "review" : "",
+    link.relationEdgeKey ? "relation-review" : ""
+  ].filter(Boolean).join(" ");
+  const applyRelationAttrs = (selection, attrName) => selection
+    .attr(attrName, (link) => link.relationEdgeKey || linkKey(link))
+    .attr("data-archive-review-edge", (link) => link.relationEdgeKey || null)
+    .attr("data-resource-id", (link) => link.resourceId || null)
+    .attr("data-target-type", (link) => link.targetType || null)
+    .attr("data-target-id", (link) => link.targetId || null);
   const linkSelection = svgSelection.selectAll("line.archive-graph-view-edge")
     .data(links, linkKey)
     .join("line")
-    .attr("class", (link) => `archive-graph-view-edge ${link.type || "link"}`)
+    .attr("class", (link) => `archive-graph-view-edge ${relationLinkClass(link)}`)
     .attr("marker-end", (link) => `url(#archive-graph-arrow-${link.type || "link"})`);
+  applyRelationAttrs(linkSelection, "data-archive-graph-edge");
   const labelSelection = svgSelection.selectAll("text.archive-graph-view-edge-label")
     .data(links, linkKey)
     .join("text")
-    .attr("class", (link) => `archive-graph-view-edge-label ${link.type || "link"}`)
+    .attr("class", (link) => `archive-graph-view-edge-label ${relationLinkClass(link)}`)
     .text((link) => link.label || link.type || "links");
+  applyRelationAttrs(labelSelection, "data-archive-graph-edge-label");
+
+  const sourceNode = (link) => nodeById.get(link.source?.id || link.source) || nodeById.get(link.from);
+  const targetNode = (link) => nodeById.get(link.target?.id || link.target) || nodeById.get(link.to);
+  const placeArchiveGraphLinks = () => {
+    linkSelection
+      .attr("x1", (link) => sourceNode(link)?.x || 0)
+      .attr("y1", (link) => sourceNode(link)?.y || 0)
+      .attr("x2", (link) => targetNode(link)?.x || 0)
+      .attr("y2", (link) => targetNode(link)?.y || 0);
+
+    labelSelection
+      .attr("x", (link) => ((sourceNode(link)?.x || 0) + (targetNode(link)?.x || 0)) / 2)
+      .attr("y", (link) => ((sourceNode(link)?.y || 0) + (targetNode(link)?.y || 0)) / 2);
+  };
+  placeArchiveGraphLinks();
 
   const simulation = d3.forceSimulation(nodes)
     .force("link", d3.forceLink(links).id((node) => node.id).distance((link) => {
@@ -128,18 +165,7 @@ export function initArchiveGraphD3() {
       node.y = clamp(node.y, 48, height - 48);
     });
 
-    const sourceNode = (link) => nodeById.get(link.source.id || link.source) || nodeById.get(link.from);
-    const targetNode = (link) => nodeById.get(link.target.id || link.target) || nodeById.get(link.to);
-
-    linkSelection
-      .attr("x1", (link) => sourceNode(link)?.x || 0)
-      .attr("y1", (link) => sourceNode(link)?.y || 0)
-      .attr("x2", (link) => targetNode(link)?.x || 0)
-      .attr("y2", (link) => targetNode(link)?.y || 0);
-
-    labelSelection
-      .attr("x", (link) => ((sourceNode(link)?.x || 0) + (targetNode(link)?.x || 0)) / 2)
-      .attr("y", (link) => ((sourceNode(link)?.y || 0) + (targetNode(link)?.y || 0)) / 2);
+    placeArchiveGraphLinks();
 
     nodes.forEach((node) => {
       const nodeEl = nodeEls.get(node.id);

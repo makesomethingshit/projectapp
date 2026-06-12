@@ -73,6 +73,7 @@ UI 마크업을 바꾸기 전 이 파일들을 확인합니다.
 - `test_rollup_explanation.mjs`
 - `test_rollup_explanation_markup.mjs`
 - `test_encoding_integrity.mjs`
+- `test_korean_ui_layout_contract.mjs`
 - `test_detail_bottleneck_navigation.mjs`
 - `test_graph_navigation.mjs`
 - `test_graph_port_labels.mjs`
@@ -96,6 +97,7 @@ UI 마크업을 바꾸기 전 이 파일들을 확인합니다.
 - `docs/codex.md`: 기존 Codex 작업 노트의 호환 진입점. 현재 기준은 `AGENTS.md`.
 - `docs/superpowers/plans/`: 이전 구현 계획.
 - `docs/superpowers/specs/`: 이전 설계 스펙.
+- `docs/exec-plans/automation-evaluation-log.md`: 일일 자동평가 후보 수용 여부와 구현/검증 인계 기록.
 
 ## 생성물 또는 무거운 폴더
 

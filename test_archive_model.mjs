@@ -1,5 +1,10 @@
 import assert from "node:assert/strict";
-import { migrateProjectResourcesToArchive, normalizeArchiveResourceLinks } from "./archive-model.js";
+import {
+  migrateProjectResourcesToArchive,
+  normalizeArchiveResourceLinks,
+  updateArchiveResourceLinkConfidence,
+  updateArchiveResourceLinkNote
+} from "./archive-model.js";
 
 const projects = [
   {
@@ -39,7 +44,7 @@ assert.deepEqual(
     [
       { resourceId: 1, targetType: "project", targetId: 10 },
       { resourceId: 1, targetType: "project", targetId: 10 },
-      { resourceId: 2, targetType: "task", targetId: 99 },
+      { resourceId: 2, targetType: "task", targetId: 99, relationStrength: "strong", relationScore: 130, relationNote: "Read first" },
       { resourceId: 3, targetType: "project", targetId: 10 }
     ],
     [{ id: 10 }],
@@ -54,7 +59,8 @@ assert.deepEqual(
       relationStatus: "confirmed",
       relationType: "reference",
       relationStrength: "medium",
-      relationScore: null
+      relationScore: null,
+      relationNote: ""
     },
     {
       resourceId: 2,
@@ -62,9 +68,44 @@ assert.deepEqual(
       targetId: 99,
       relationStatus: "confirmed",
       relationType: "reference",
-      relationStrength: "medium",
-      relationScore: null
+      relationStrength: "strong",
+      relationScore: 100,
+      relationNote: "Read first"
     }
+  ]
+);
+
+assert.deepEqual(
+  updateArchiveResourceLinkConfidence(
+    [
+      { resourceId: 1, targetType: "project", targetId: 10, relationStrength: "medium", relationScore: null },
+      { resourceId: 2, targetType: "task", targetId: 99, relationStrength: "weak", relationScore: 30 }
+    ],
+    2,
+    "task",
+    99,
+    "strong"
+  ),
+  [
+    { resourceId: 1, targetType: "project", targetId: 10, relationStrength: "medium", relationScore: null },
+    { resourceId: 2, targetType: "task", targetId: 99, relationStrength: "strong", relationScore: 90, relationStatus: "confirmed" }
+  ]
+);
+
+assert.deepEqual(
+  updateArchiveResourceLinkNote(
+    [
+      { resourceId: 1, targetType: "project", targetId: 10, relationNote: "" },
+      { resourceId: 2, targetType: "task", targetId: 99, relationNote: "" }
+    ],
+    2,
+    "task",
+    99,
+    "Useful for typography"
+  ),
+  [
+    { resourceId: 1, targetType: "project", targetId: 10, relationNote: "" },
+    { resourceId: 2, targetType: "task", targetId: 99, relationNote: "Useful for typography" }
   ]
 );
 

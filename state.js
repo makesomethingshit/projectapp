@@ -101,6 +101,9 @@ export const state = {
     archiveViewMode: "topic",
     archiveGraphDisplayMode: "graph3d",
     archiveGraphDepth: 2,
+    archiveGraphKindFilter: "all",
+    archiveGraphStrengthFilter: "all",
+    archiveGraphFiltersCollapsed: false,
     archiveGraphLabelDensity: "focus",
     graphArchiveNodes: [],
     graphArchiveLinks: [],
@@ -225,6 +228,177 @@ function findDesignSiteLinkResources() {
   });
 }
 
+const DESIGN_SITE_AUTO_NOTE_PREFIX = "\uc8fc\uac04 1\ud398\uc774\uc9c0";
+const DESIGN_SITE_CONFIDENCE_NOTES = {
+  primary: "\uc8fc\uac04 1\ud398\uc774\uc9c0 \uc774\ubbf8\uc9c0+\ud14d\uc2a4\ud2b8 \uc791\uc5c5\uc5d0 \ubc14\ub85c \uc4f8 1\uc21c\uc704 \ucc38\uace0.",
+  editorial: "\uc8fc\uac04 1\ud398\uc774\uc9c0 \uc774\ubbf8\uc9c0+\ud14d\uc2a4\ud2b8 \uc791\uc5c5\uc5d0 \uc720\uc775\ud55c \ud3b8\uc9d1/\uc544\uce74\uc774\ube0c \ucc38\uace0.",
+  trend: "\uc8fc\uac04 1\ud398\uc774\uc9c0 \uc791\uc5c5\uc5d0 \ud2b8\ub80c\ub4dc/\ubb34\ub4dc \ucc38\uace0\ub85c \uc720\uc6a9.",
+  support: "\uc8fc\uac04 1\ud398\uc774\uc9c0 \uc791\uc5c5\uc5d0\ub294 \ubcf4\uc870 \ucc38\uace0. \ud544\uc694\ud560 \ub54c \ud655\uc778."
+};
+
+const DESIGN_SITE_CONFIDENCE_RULES = [
+  {
+    hosts: ["itsnicethat.com", "publicdomainreview.org"],
+    relationStrength: "strong",
+    relationScore: 94,
+    relationNote: DESIGN_SITE_CONFIDENCE_NOTES.primary
+  },
+  {
+    hosts: [
+      "bpando.org",
+      "are.na",
+      "draw-down.com",
+      "oasejournal.nl",
+      "slanted.de",
+      "e-flux.com",
+      "typographicposters.com",
+      "debestverzorgdeboeken.nl",
+      "artpapereditions.org",
+      "romapublications.org",
+      "graphis.com",
+      "bijutsutecho.com",
+      "anothergraphic.org",
+      "fontsinuse.com"
+    ],
+    relationStrength: "strong",
+    relationScore: 86,
+    relationNote: DESIGN_SITE_CONFIDENCE_NOTES.editorial
+  },
+  {
+    hosts: [
+      "metahaven.tumblr.com",
+      "mthvn.tumblr.com",
+      "siteinspire.com",
+      "awwwards.com",
+      "land-book.com",
+      "mindsparklemag.com",
+      "eyeondesign.aiga.org",
+      "the-brandidentity.com",
+      "creativeboom.com",
+      "designobserver.com",
+      "printmag.com"
+    ],
+    relationStrength: "medium",
+    relationScore: 68,
+    relationNote: DESIGN_SITE_CONFIDENCE_NOTES.trend
+  }
+];
+
+const DESIGN_SITE_LOW_CONFIDENCE_HOSTS = [
+  "instagram.com",
+  "behance.net",
+  "vimeo.com",
+  "quora.com",
+  "medium.com",
+  "github.com",
+  "blog.naver.com",
+  "m.blog.naver.com",
+  "korean.go.kr",
+  "w3.org",
+  "fonts.adobe.com",
+  "fonts.google.com",
+  "myfonts.com",
+  "dafont.com",
+  "fontfree.me",
+  "fontshub.pro",
+  "fontmeme.com",
+  "leserlich.info",
+  "elvers.us",
+  "ik4.es",
+  "3nd.jp",
+  "cottala-becco.com",
+  "parksb.github.io"
+];
+
+function designSiteResourceHost(resource) {
+  try {
+    const host = new URL(String(resource?.path || "")).hostname.toLowerCase();
+    return host.replace(/^www\./, "");
+  } catch {
+    return "";
+  }
+}
+
+function designSiteHostMatches(host, ruleHost) {
+  if (!host || !ruleHost) return false;
+  return host === ruleHost || host.endsWith(`.${ruleHost}`);
+}
+
+function getDesignSiteResourceConfidence(resource) {
+  const host = designSiteResourceHost(resource);
+  const path = String(resource?.path || "").toLowerCase();
+  const name = String(resource?.name || "").toLowerCase();
+  const matchedRule = DESIGN_SITE_CONFIDENCE_RULES.find((rule) => (
+    rule.hosts.some((ruleHost) => designSiteHostMatches(host, ruleHost))
+  ));
+  if (matchedRule) {
+    return {
+      relationStrength: matchedRule.relationStrength,
+      relationScore: matchedRule.relationScore,
+      relationNote: matchedRule.relationNote
+    };
+  }
+
+  if (DESIGN_SITE_LOW_CONFIDENCE_HOSTS.some((ruleHost) => designSiteHostMatches(host, ruleHost))
+    || host.endsWith("tumblr.com")
+    || /(?:font|calculator|what-the-font|postview|article\/37|typeface_size|visualangle)/.test(path)) {
+    return {
+      relationStrength: "weak",
+      relationScore: 34,
+      relationNote: DESIGN_SITE_CONFIDENCE_NOTES.support
+    };
+  }
+
+  if (/(?:book|poster|journal|archive|publication|magazine|graphic|typography|portfolio|works|studio|press|festival|fair|type)/.test(`${name} ${path}`)) {
+    return {
+      relationStrength: "medium",
+      relationScore: 64,
+      relationNote: DESIGN_SITE_CONFIDENCE_NOTES.trend
+    };
+  }
+
+  return {
+    relationStrength: "weak",
+    relationScore: 42,
+    relationNote: DESIGN_SITE_CONFIDENCE_NOTES.support
+  };
+}
+
+function applyDesignSiteLinkConfidence(task, designSiteResources) {
+  const resourceById = new Map(designSiteResources.map((resource) => [Number(resource.id), resource]));
+  let updated = 0;
+  const nextLinks = state.archiveResourceLinks.map((link) => {
+    if (link.targetType !== "task" || Number(link.targetId) !== Number(task.id)) return link;
+    const resource = resourceById.get(Number(link.resourceId));
+    const existingNote = String(link.relationNote || "").trim();
+    const numericScore = Number(link.relationScore);
+    const hasUninitializedScore = link.relationScore === null
+      || (!existingNote && Number.isFinite(numericScore) && numericScore <= 0);
+    if (!resource || !hasUninitializedScore) return link;
+
+    const confidence = getDesignSiteResourceConfidence(resource);
+    const nextNote = existingNote && !existingNote.startsWith(DESIGN_SITE_AUTO_NOTE_PREFIX)
+      ? existingNote
+      : confidence.relationNote;
+    updated += 1;
+    return {
+      ...link,
+      relationStatus: "confirmed",
+      relationType: "reference",
+      relationStrength: confidence.relationStrength,
+      relationScore: confidence.relationScore,
+      relationNote: nextNote
+    };
+  });
+  state.archiveResourceLinks = normalizeArchiveResourceLinks(
+    nextLinks,
+    state.projects,
+    state.tasks,
+    state.archiveResources
+  );
+  return updated;
+}
+
 export function ensureDesignSiteTaskLink(targetTaskId = null) {
   const taskName = "디자인 사이트 보기";
   const targetTask = targetTaskId !== null
@@ -280,6 +454,7 @@ export function ensureDesignSiteTaskLink(targetTaskId = null) {
     && Number(link.targetId) === Number(task.id)
     && designSiteResources.some((resource) => Number(resource.id) === Number(link.resourceId))
   )).length ? addedLinks : 0;
+  changed += applyDesignSiteLinkConfidence(task, designSiteResources);
 
   return changed;
 }
@@ -799,6 +974,13 @@ export function applyLoadedState(saved) {
   state.appSettings.archiveGraphDepth = [1, 2, 3, 4].includes(Number(state.appSettings.archiveGraphDepth))
     ? Number(state.appSettings.archiveGraphDepth)
     : 2;
+  state.appSettings.archiveGraphKindFilter = ["all", "files", "links"].includes(state.appSettings.archiveGraphKindFilter)
+    ? state.appSettings.archiveGraphKindFilter
+    : "all";
+  state.appSettings.archiveGraphStrengthFilter = ["all", "strong", "review"].includes(state.appSettings.archiveGraphStrengthFilter)
+    ? state.appSettings.archiveGraphStrengthFilter
+    : "all";
+  state.appSettings.archiveGraphFiltersCollapsed = state.appSettings.archiveGraphFiltersCollapsed === true;
   state.appSettings.archiveGraphLabelDensity = ["focus", "all", "none"].includes(state.appSettings.archiveGraphLabelDensity)
     ? state.appSettings.archiveGraphLabelDensity
     : "focus";

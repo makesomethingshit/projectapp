@@ -52,7 +52,7 @@
   border-radius: 5px;
   background: transparent;
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--type-row-title);
   font-weight: 600;
   cursor: pointer;
   transition: background 0.15s, color 0.15s;
@@ -89,7 +89,7 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   margin: 0;
-  font-size: 22px;
+  font-size: var(--type-brand);
   line-height: 1;
 }
 
@@ -105,7 +105,7 @@
   text-overflow: ellipsis;
   margin: 0;
   color: var(--muted);
-  font-size: 15px;
+  font-size: var(--type-title);
   white-space: nowrap;
 }
 
@@ -137,7 +137,7 @@
   padding: 0 10px;
   background: transparent;
   color: var(--text);
-  font-size: 13px;
+  font-size: var(--type-body);
   font-weight: 800;
   text-align: left;
 }
@@ -149,7 +149,7 @@
 .file-menu p {
   margin: 2px 2px 0;
   color: var(--muted);
-  font-size: 11px;
+  font-size: var(--type-meta);
   line-height: 1.4;
 }
 
@@ -194,7 +194,7 @@
   padding: 0 12px;
   background: transparent;
   color: var(--text);
-  font-size: 12px;
+  font-size: var(--type-row-title);
   outline: 0;
 }
 
@@ -204,7 +204,7 @@
   border: 0;
   background: transparent;
   color: var(--quiet);
-  font-size: 16px;
+  font-size: var(--type-section);
 }
 
 .archive-full-view {
@@ -249,7 +249,7 @@
 
 .archive-sidebar-header h3 {
   margin: 0;
-  font-size: 14px;
+  font-size: var(--type-title);
   font-weight: 700;
   color: var(--text);
 }
@@ -316,7 +316,7 @@
 
 .archive-backlinks-header h3 {
   margin: 0;
-  font-size: 11px;
+  font-size: var(--type-meta);
   font-weight: 700;
   color: var(--muted);
   text-transform: uppercase;
@@ -441,7 +441,7 @@
   border: 1px solid var(--border);
   border-radius: 16px;
   box-shadow: 0 12px 40px var(--shadow-strong);
-  font-size: 14px;
+  font-size: var(--type-title);
   font-weight: 700;
   color: var(--accent);
   display: flex;

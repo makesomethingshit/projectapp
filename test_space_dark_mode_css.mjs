@@ -39,6 +39,21 @@ assert.match(
   /\.archive-graph-inspector\s*\{[^}]*background:\s*var\(--panel-raised\);/s,
   "Space inspector should follow theme surfaces"
 );
+assert.match(
+  componentsCss,
+  /\.archive-graph-inspector-card\s*\{[^}]*background:\s*var\(--panel-soft\);/s,
+  "Space inspector cards should use theme surface tokens"
+);
+assert.match(
+  componentsCss,
+  /\.archive-graph-context-actions button\s*\{[^}]*background:\s*var\(--panel-raised\);[^}]*color:\s*var\(--text\);/s,
+  "Space inspector action buttons must remain visible in dark mode"
+);
+assert.match(
+  componentsCss,
+  /\.archive-graph-linked-work\s*\{[^}]*min-width:\s*0;/s,
+  "linked work rows must allow Korean labels to shrink without clipping"
+);
 assert.doesNotMatch(
   componentsCss,
   /\.archive-graph-inspector\s*\{[^}]*background:\s*#f4f0e7;/s,

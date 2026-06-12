@@ -97,9 +97,11 @@ import {
   addArchiveResource,
   deleteArchiveResource,
   updateArchiveResource,
+  updateArchiveResourceLinkConfidence,
+  updateArchiveResourceLinkNote,
   scheduleArchiveEmbeddingRefresh,
-  attachArchiveResourceToProject,
-  detachArchiveResourceFromProject,
+  attachArchiveResourceToTarget,
+  detachArchiveResourceFromTarget,
   deleteGraphFreeNode,
   openGraphInlineEdit,
   syncGraphPortEdges,
@@ -150,8 +152,19 @@ function applyArchiveGraphPan(root, pan) {
 
 function isArchiveGraphPanExcluded(target) {
   return Boolean(target.closest?.(
-    "[data-archive-graph-node], .archive-graph-inspector, .archive-graph-canvas-top, .archive-graph-axis, .archive-graph-control-hint"
+    "[data-archive-graph-node], [data-archive-graph-edge], [data-archive-graph-edge-label], [data-archive-review-edge], .archive-graph-inspector, .archive-graph-canvas-top, .archive-graph-axis, .archive-graph-control-hint"
   ));
+}
+
+function markArchiveGraphRelationSelection(root, edgeKey) {
+  if (!root || !edgeKey) return;
+  root.querySelectorAll("[data-archive-graph-edge].selected, [data-archive-graph-edge-label].selected, [data-archive-review-edge].selected")
+    .forEach((element) => element.classList.remove("selected"));
+  const escapedEdgeKey = globalThis.CSS?.escape
+    ? globalThis.CSS.escape(edgeKey)
+    : String(edgeKey).replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+  root.querySelectorAll(`[data-archive-graph-edge="${escapedEdgeKey}"], [data-archive-graph-edge-label="${escapedEdgeKey}"], [data-archive-review-edge="${escapedEdgeKey}"]`)
+    .forEach((element) => element.classList.add("selected"));
 }
 
 function suppressNextGraphPortToggle() {
@@ -644,6 +657,27 @@ export function initEvents() {
       return;
     }
 
+    const relationConfidenceBtn = event.target.closest("[data-archive-relation-strength]");
+    if (relationConfidenceBtn) {
+      event.preventDefault();
+      updateArchiveResourceLinkConfidence(
+        relationConfidenceBtn.dataset.resourceId,
+        relationConfidenceBtn.dataset.targetType,
+        relationConfidenceBtn.dataset.targetId,
+        relationConfidenceBtn.dataset.archiveRelationStrength
+      );
+      return;
+    }
+
+    const archiveGraphEdgeTarget = event.target.closest("[data-archive-graph-edge], [data-archive-graph-edge-label]");
+    if (archiveGraphEdgeTarget) {
+      event.preventDefault();
+      const edgeKey = archiveGraphEdgeTarget.dataset.archiveGraphEdge || archiveGraphEdgeTarget.dataset.archiveGraphEdgeLabel;
+      const graphRoot = archiveGraphEdgeTarget.closest("[data-archive-graph-view]");
+      markArchiveGraphRelationSelection(graphRoot, edgeKey);
+      return;
+    }
+
     const delResBtn = event.target.closest("[data-delete-archive-id]");
     if (delResBtn) {
       event.preventDefault();
@@ -671,6 +705,9 @@ export function initEvents() {
     if (toggleEditModeBtn) {
       event.preventDefault();
       state.archiveEditMode = !state.archiveEditMode;
+      if (state.archiveEditMode && state.appSettings.archiveViewMode === "graph") {
+        state.appSettings.archiveViewMode = "all";
+      }
       render();
       return;
     }
@@ -697,12 +734,54 @@ export function initEvents() {
       return;
     }
 
+    const archiveGraphFilterCollapseBtn = event.target.closest("[data-archive-graph-filters-collapsed]");
+    if (archiveGraphFilterCollapseBtn) {
+      event.preventDefault();
+      state.appSettings.archiveGraphFiltersCollapsed = archiveGraphFilterCollapseBtn.dataset.archiveGraphFiltersCollapsed === "true";
+      saveState();
+      render();
+      return;
+    }
+
+    const archiveGraphFilterResetBtn = event.target.closest("[data-archive-graph-filter-reset]");
+    if (archiveGraphFilterResetBtn) {
+      event.preventDefault();
+      state.appSettings.archiveGraphDepth = 2;
+      state.appSettings.archiveGraphKindFilter = "all";
+      state.appSettings.archiveGraphStrengthFilter = "all";
+      state.appSettings.archiveGraphFiltersCollapsed = false;
+      scheduleArchiveEmbeddingRefresh("archive-graph-filter-reset");
+      saveState();
+      render();
+      return;
+    }
+
     const archiveGraphDepthBtn = event.target.closest("[data-archive-graph-depth]");
     if (archiveGraphDepthBtn) {
       event.preventDefault();
       const depth = Number(archiveGraphDepthBtn.dataset.archiveGraphDepth);
       state.appSettings.archiveGraphDepth = [1, 2, 3, 4].includes(depth) ? depth : 2;
       scheduleArchiveEmbeddingRefresh("archive-graph-depth");
+      saveState();
+      render();
+      return;
+    }
+
+    const archiveGraphKindFilterBtn = event.target.closest("[data-archive-graph-kind-filter]");
+    if (archiveGraphKindFilterBtn) {
+      event.preventDefault();
+      const filter = archiveGraphKindFilterBtn.dataset.archiveGraphKindFilter;
+      state.appSettings.archiveGraphKindFilter = ["all", "files", "links"].includes(filter) ? filter : "all";
+      saveState();
+      render();
+      return;
+    }
+
+    const archiveGraphStrengthFilterBtn = event.target.closest("[data-archive-graph-strength-filter]");
+    if (archiveGraphStrengthFilterBtn) {
+      event.preventDefault();
+      const filter = archiveGraphStrengthFilterBtn.dataset.archiveGraphStrengthFilter;
+      state.appSettings.archiveGraphStrengthFilter = ["all", "strong", "review"].includes(filter) ? filter : "all";
       saveState();
       render();
       return;
@@ -727,12 +806,13 @@ export function initEvents() {
       return;
     }
 
-    const detachArchiveProjectBtn = event.target.closest("[data-detach-archive-project]");
-    if (detachArchiveProjectBtn) {
+    const detachArchiveTargetBtn = event.target.closest("[data-detach-archive-target], [data-detach-archive-project]");
+    if (detachArchiveTargetBtn) {
       event.preventDefault();
-      detachArchiveResourceFromProject(
-        detachArchiveProjectBtn.dataset.detachArchiveProject,
-        detachArchiveProjectBtn.dataset.projectId
+      detachArchiveResourceFromTarget(
+        detachArchiveTargetBtn.dataset.detachArchiveTarget || detachArchiveTargetBtn.dataset.detachArchiveProject,
+        detachArchiveTargetBtn.dataset.targetType || "project",
+        detachArchiveTargetBtn.dataset.targetId || detachArchiveTargetBtn.dataset.projectId
       );
       return;
     }
@@ -1981,6 +2061,17 @@ export function initEvents() {
       saveState();
     }
 
+    const relationNoteInput = event.target.closest("[data-archive-relation-note]");
+    if (relationNoteInput) {
+      updateArchiveResourceLinkNote(
+        relationNoteInput.dataset.resourceId,
+        relationNoteInput.dataset.targetType,
+        relationNoteInput.dataset.targetId,
+        relationNoteInput.value
+      );
+      return;
+    }
+
     const formulaCompletionInput = event.target.closest("[data-graph-formula-completion]");
     const formulaAdvanceInput = event.target.closest("[data-graph-formula-advance]");
     if (formulaCompletionInput || formulaAdvanceInput) {
@@ -2044,11 +2135,15 @@ export function initEvents() {
       }
       return;
     }
-    const attachArchiveProjectSelect = event.target.closest("[data-attach-archive-project]");
-    if (attachArchiveProjectSelect) {
-      const projectId = Number(attachArchiveProjectSelect.value);
-      if (projectId) {
-        attachArchiveResourceToProject(attachArchiveProjectSelect.dataset.attachArchiveProject, projectId);
+    const attachArchiveTargetSelect = event.target.closest("[data-attach-archive-target], [data-attach-archive-project]");
+    if (attachArchiveTargetSelect) {
+      const targetId = Number(attachArchiveTargetSelect.value);
+      if (targetId) {
+        attachArchiveResourceToTarget(
+          attachArchiveTargetSelect.dataset.attachArchiveTarget || attachArchiveTargetSelect.dataset.attachArchiveProject,
+          attachArchiveTargetSelect.dataset.targetType || "project",
+          targetId
+        );
       }
       return;
     }

@@ -100,6 +100,7 @@ import {
   closePreferencesModal,
   openProjectModal,
   closeProjectModal,
+  refreshTaskLauncherModal,
   renderParentOptions,
   renderEditParentOptions,
   externalTargetOptionsMarkup,
@@ -119,6 +120,8 @@ import {
   createArchiveResourceId,
   normalizeArchiveTags,
   removeArchiveResourceLink,
+  updateArchiveResourceLinkConfidence as updateArchiveResourceLinkConfidenceModel,
+  updateArchiveResourceLinkNote as updateArchiveResourceLinkNoteModel,
   updateArchiveResource as updateArchiveResourceModel
 } from "./archive-model.js";
 
@@ -1263,6 +1266,41 @@ export function updateArchiveResource(resourceId, patch) {
   return true;
 }
 
+export function attachArchiveResourceToTarget(resourceId, targetType, targetId) {
+  if (!state.archiveResources.some((resource) => resource.id === Number(resourceId))) return;
+  const normalizedType = targetType === "task" ? "task" : "project";
+  const targetExists = normalizedType === "task"
+    ? state.tasks.some((task) => task.id === Number(targetId))
+    : Boolean(getProject(Number(targetId)));
+  if (!targetExists) return;
+  state.archiveResourceLinks = addArchiveResourceLink(
+    state.archiveResourceLinks || [],
+    resourceId,
+    normalizedType,
+    targetId
+  );
+  state.graphNotice = normalizedType === "task"
+    ? "\uc544\uce74\uc774\ube0c\ub97c \ud560 \uc77c\uc5d0 \uc5f0\uacb0\ud588\uc2b5\ub2c8\ub2e4."
+    : "\uc544\uce74\uc774\ube0c\ub97c \ud504\ub85c\uc81d\ud2b8\uc5d0 \uc5f0\uacb0\ud588\uc2b5\ub2c8\ub2e4.";
+  saveState();
+  render();
+}
+
+export function detachArchiveResourceFromTarget(resourceId, targetType, targetId) {
+  const normalizedType = targetType === "task" ? "task" : "project";
+  state.archiveResourceLinks = removeArchiveResourceLink(
+    state.archiveResourceLinks || [],
+    resourceId,
+    normalizedType,
+    targetId
+  );
+  state.graphNotice = normalizedType === "task"
+    ? "\uc544\uce74\uc774\ube0c \ud560 \uc77c \uc5f0\uacb0\uc744 \ud574\uc81c\ud588\uc2b5\ub2c8\ub2e4."
+    : "\uc544\uce74\uc774\ube0c \ud504\ub85c\uc81d\ud2b8 \uc5f0\uacb0\uc744 \ud574\uc81c\ud588\uc2b5\ub2c8\ub2e4.";
+  saveState();
+  render();
+}
+
 export function attachArchiveResourceToProject(resourceId, projectId) {
   if (!state.archiveResources.some((resource) => resource.id === Number(resourceId))) return;
   if (!getProject(Number(projectId))) return;
@@ -1287,6 +1325,32 @@ export function detachArchiveResourceFromProject(resourceId, projectId) {
   state.graphNotice = "아카이브 프로젝트 연결을 해제했습니다.";
   saveState();
   render();
+}
+
+export function updateArchiveResourceLinkConfidence(resourceId, targetType, targetId, strength) {
+  const before = state.archiveResourceLinks || [];
+  state.archiveResourceLinks = updateArchiveResourceLinkConfidenceModel(
+    before,
+    resourceId,
+    targetType,
+    targetId,
+    strength
+  );
+  state.graphNotice = "\uc790\ub8cc \uc5f0\uacb0 \uc2e0\ub8b0\ub3c4\ub97c \uc870\uc815\ud588\uc2b5\ub2c8\ub2e4.";
+  saveState();
+  render();
+  refreshTaskLauncherModal();
+}
+
+export function updateArchiveResourceLinkNote(resourceId, targetType, targetId, note) {
+  state.archiveResourceLinks = updateArchiveResourceLinkNoteModel(
+    state.archiveResourceLinks || [],
+    resourceId,
+    targetType,
+    targetId,
+    note
+  );
+  saveState();
 }
 
 export function createGraphArchiveNode(point, resourceId = null) {

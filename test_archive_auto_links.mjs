@@ -74,6 +74,31 @@ assert.ok(conservative.suggestions.some((link) => link.resourceId === 301 && lin
 assert.ok(!conservative.links.some((link) => link.resourceId === 301 && link.targetType === "project" && link.targetId === 1));
 assert.ok(conservative.links.some((link) => link.relationType === "core" && link.relationStrength === "strong"));
 
+const memoAssisted = buildAutomaticArchiveResourceLinks(
+  projects,
+  tasks,
+  [
+    {
+      id: 401,
+      name: "Ambiguous reference",
+      type: "file",
+      path: "C:\\archive\\ambiguous.pdf",
+      desc: "visual reference",
+      tags: [],
+      semanticEmbedding: [0.45, 0.55, 0]
+    }
+  ],
+  [
+    {
+      resourceId: 401,
+      targetType: "task",
+      targetId: 10,
+      relationNote: "typography portfolio"
+    }
+  ]
+);
+assert.ok(memoAssisted.links.some((link) => link.resourceId === 401 && link.targetType === "project" && link.targetId === 2));
+
 const normalizedLegacyLinks = normalizeArchiveResourceLinks(
   [{ resourceId: 101, targetType: "task", targetId: 10 }],
   projects,
@@ -87,7 +112,8 @@ assert.deepEqual(normalizedLegacyLinks[0], {
   relationStatus: "confirmed",
   relationType: "reference",
   relationStrength: "medium",
-  relationScore: null
+  relationScore: null,
+  relationNote: ""
 });
 
 state.projects = projects;

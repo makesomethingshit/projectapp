@@ -105,6 +105,24 @@ function assignGraphDistances(nodes, links, activeId) {
   });
 }
 
+function applyFocusDepth(nodes, links, focusDepth) {
+  const visibleNodeIds = new Set();
+  nodes.forEach((node) => {
+    const distance = Number(node.graphDistance);
+    if (node.active || (Number.isFinite(distance) && distance <= focusDepth)) {
+      visibleNodeIds.add(node.id);
+    }
+  });
+
+  const visibleNodes = nodes.filter((node) => visibleNodeIds.has(node.id));
+  const visibleLinks = links.filter((link) => visibleNodeIds.has(link.source) && visibleNodeIds.has(link.target));
+  return {
+    nodes: visibleNodes,
+    links: visibleLinks,
+    hiddenByDepthCount: Math.max(0, nodes.length - visibleNodes.length)
+  };
+}
+
 function buildLinksByResource(stateLike) {
   const projectsById = new Map((Array.isArray(stateLike?.projects) ? stateLike.projects : [])
     .map((project) => [Number(project.id), project]));
@@ -127,7 +145,8 @@ function buildLinksByResource(stateLike) {
       relationStatus: link.relationStatus || "confirmed",
       relationType: link.relationType || "reference",
       relationStrength: link.relationStrength || "medium",
-      relationScore: Number.isFinite(Number(link.relationScore)) ? Number(link.relationScore) : null
+      relationScore: Number.isFinite(Number(link.relationScore)) ? Number(link.relationScore) : null,
+      relationNote: typeof link.relationNote === "string" ? link.relationNote : ""
     };
     const summaries = linksByResource.get(resourceId) || [];
     summaries.push(summary);
@@ -135,6 +154,66 @@ function buildLinksByResource(stateLike) {
   });
 
   return linksByResource;
+}
+
+function relationScoreValue(link, fallback = 50) {
+  const score = Number(link?.relationScore);
+  if (Number.isFinite(score)) return Math.max(0, Math.min(100, Math.round(score)));
+  if (link?.relationStrength === "strong") return 90;
+  if (link?.relationStrength === "weak") return 30;
+  return fallback;
+}
+
+function relationLaneFromScore(score, link = {}) {
+  if (link.relationStatus === "suggested") return "review";
+  if (score >= 78) return "first";
+  if (score >= 55) return "middle";
+  if (score >= 1) return "low";
+  return "unverified";
+}
+
+function summarizeResourceRelations(backlinks = []) {
+  if (!backlinks.length) {
+    return {
+      relationScore: 0,
+      relationLane: "unverified",
+      hasRelationMemo: false,
+      strongestBacklink: null
+    };
+  }
+  const ordered = [...backlinks].sort((a, b) => relationScoreValue(b, 0) - relationScoreValue(a, 0));
+  const strongestBacklink = ordered[0];
+  const relationScore = relationScoreValue(strongestBacklink, 50);
+  return {
+    relationScore,
+    relationLane: relationLaneFromScore(relationScore, strongestBacklink),
+    hasRelationMemo: backlinks.some((link) => typeof link.relationNote === "string" && link.relationNote.trim()),
+    strongestBacklink
+  };
+}
+
+function materialQualityScore(resource) {
+  const descLength = String(resource?.desc || "").trim().length;
+  const tagCount = Array.isArray(resource?.tags)
+    ? resource.tags.filter((tag) => String(tag || "").trim()).length
+    : 0;
+  const hasPath = String(resource?.path || "").trim().length > 0;
+  const hasEmbedding = Array.isArray(resource?.semanticEmbedding) && resource.semanticEmbedding.length > 0;
+  let score = 24;
+
+  if (descLength >= 80) {
+    score += 24;
+  } else if (descLength >= 24) {
+    score += 14;
+  } else if (descLength > 0) {
+    score += 6;
+  }
+  score += Math.min(18, tagCount * 5);
+  if (hasPath) score += 8;
+  if (hasEmbedding) score += 18;
+  if (resource?.type === "link") score += 4;
+
+  return Math.max(1, Math.min(100, Math.round(score)));
 }
 
 function scoreMaterial(resource, selectedResource, selectedEmbedding, linksByResource) {
@@ -151,6 +230,7 @@ function scoreMaterial(resource, selectedResource, selectedEmbedding, linksByRes
   }
   return {
     score: Math.max(1, Math.min(100, Math.round(score))),
+    materialQualityScore: materialQualityScore(resource),
     terms,
     semanticScore,
     embedding,
@@ -188,17 +268,23 @@ export function buildArchiveGraphModel(stateLike, options = {}) {
     }))
     .sort((a, b) => b.score - a.score || String(a.resource.name || "").localeCompare(String(b.resource.name || "")));
   const visibleMaterials = materialCandidates.slice(0, nodeLimit);
-  visibleMaterials.forEach(({ resource, score, terms, semanticScore, backlinks }) => {
+  visibleMaterials.forEach(({ resource, score, materialQualityScore, terms, semanticScore, backlinks }) => {
+    const relationSummary = summarizeResourceRelations(backlinks);
     addNode(nodes, nodeMap, {
       id: `resource:${resource.id}`,
       kind: resource.type === "link" ? "link" : "file",
       label: resource.name || "Untitled material",
       meta: resource.type || "file",
       score,
+      materialQualityScore,
       terms,
       semanticScore,
       explicitLinkCount: backlinks.length,
       backlinks: backlinks.slice(0, 4),
+      relationScore: relationSummary.relationScore,
+      relationLane: relationSummary.relationLane,
+      hasRelationMemo: relationSummary.hasRelationMemo,
+      strongestBacklink: relationSummary.strongestBacklink,
       active: selectedResource && Number(resource.id) === Number(selectedResource.id),
       resourceId: Number(resource.id)
     });
@@ -229,19 +315,27 @@ export function buildArchiveGraphModel(stateLike, options = {}) {
     .slice(0, edgeLimit);
   const activeNodeId = selectedResource ? `resource:${selectedResource.id}` : null;
   assignGraphDistances(nodes, orderedLinks, activeNodeId);
+  const depthGraph = applyFocusDepth(nodes, orderedLinks, focusDepth);
+  const relationLaneCounts = depthGraph.nodes.reduce((counts, node) => {
+    const lane = node.relationLane || "unverified";
+    counts[lane] = (counts[lane] || 0) + 1;
+    return counts;
+  }, { first: 0, middle: 0, low: 0, review: 0, unverified: 0 });
 
   return {
-    nodes,
-    links: orderedLinks,
+    nodes: depthGraph.nodes,
+    links: depthGraph.links,
     meta: {
       selectedId: selectedResource ? Number(selectedResource.id) : null,
       focusDepth,
       topTerms: selectedTerms,
       materialCount: visibleMaterials.length,
-      nodeCount: nodes.length,
-      relationCount: orderedLinks.length,
+      nodeCount: depthGraph.nodes.length,
+      relationCount: depthGraph.links.length,
       backlinkCount: Array.from(linksByResource.values()).reduce((total, summaries) => total + summaries.length, 0),
-      hiddenMaterialCount: Math.max(0, resources.length - visibleMaterials.length)
+      hiddenMaterialCount: Math.max(0, resources.length - visibleMaterials.length),
+      hiddenByDepthCount: depthGraph.hiddenByDepthCount,
+      relationLaneCounts
     }
   };
 }

@@ -139,5 +139,6 @@
 
 - Automatic archive relations use semantic similarity plus shared content terms. The default confirmed-link threshold is intentionally conservative.
 - Candidates below the confirmed threshold but above the suggestion threshold are returned as suggestions and are not stored as `archiveResourceLinks`.
-- Relation metadata is normalized with each archive link: `relationStatus`, `relationType`, `relationStrength`, and `relationScore`.
+- Relation metadata is normalized with each archive link: `relationStatus`, `relationType`, `relationStrength`, `relationScore`, and `relationNote`.
+- Existing `relationNote` text is included as same-resource context when automatic archive links are scored again, so user memos can improve later Space auto-link suggestions without mutating the archive resource itself.
 - Space graph step distance is computed from the selected material through material-to-material graph links: selected material is `0`, direct neighbors are `1`, and neighbors reached through one intermediate material are `2`.

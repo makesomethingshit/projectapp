@@ -156,5 +156,7 @@
     - `relationType`: `core`, `reference`, `evidence`, or `similar`; legacy links default to `reference`.
     - `relationStrength`: `strong`, `medium`, or `weak`; legacy links default to `medium`.
     - `relationScore`: integer `0-100` or `null` for manual/legacy links.
+    - `relationNote`: optional per-link memo text, normalized to a string and capped at 500 characters.
+- Existing `relationNote` text is treated as additional context for the same archive resource during later automatic link scoring; it helps ranking without changing the stored `archiveResources` record.
 - Automatic archive linking is conservative by default. Strong matches become confirmed links; weaker but plausible matches may be returned as suggestions without being stored.
 - Missing semantic embeddings must not create relation scores or automatic confirmed links by term overlap alone.

@@ -8,7 +8,8 @@ const link = (resourceId, targetType, targetId) => ({
   relationStatus: "confirmed",
   relationType: "reference",
   relationStrength: "medium",
-  relationScore: null
+  relationScore: null,
+  relationNote: ""
 });
 
 const first = addArchiveResourceLink([], 10, "project", 3);

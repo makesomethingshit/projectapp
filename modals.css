@@ -103,7 +103,7 @@
 .modal-head h2 {
   overflow-wrap: anywhere;
   margin: 5px 0 0;
-  font-size: 19px;
+  font-size: var(--type-panel-title);
   line-height: 1.2;
 }
 

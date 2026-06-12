@@ -548,6 +548,16 @@ export function openTaskLauncherModal(taskId) {
   taskLauncherModal?.querySelector(".task-launcher-open:not(:disabled), #taskLauncherGoArchive, #closeTaskLauncherModal")?.focus();
 }
 
+export function refreshTaskLauncherModal() {
+  if (!taskLauncherModal || taskLauncherModal.hidden || !taskLauncherBody || !state.launchingTaskId) return;
+  const reviewWasOpen = Boolean(taskLauncherBody.querySelector?.(".task-launcher-curation-review")?.open);
+  const previousScrollTop = Number(taskLauncherBody.scrollTop || 0);
+  taskLauncherBody.innerHTML = taskLauncherMarkup(state.launchingTaskId);
+  const reviewDetails = taskLauncherBody.querySelector?.(".task-launcher-curation-review");
+  if (reviewDetails && reviewWasOpen) reviewDetails.open = true;
+  if (previousScrollTop) taskLauncherBody.scrollTop = previousScrollTop;
+}
+
 export function closeTaskLauncherModal() {
   if (taskLauncherModal) taskLauncherModal.hidden = true;
   state.launchingTaskId = null;
