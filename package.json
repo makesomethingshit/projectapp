@@ -28,6 +28,7 @@
       "app.js",
       "archive-graph-d3.js",
       "archive-graph-model.js",
+      "archive-relation-ui.js",
       "archive-graph-3d.js",
       "archive-embeddings.js",
       "app-graph-actions.js",

@@ -5,6 +5,7 @@ const assertionTests = [
   "test_archive_auto_links.mjs",
   "test_archive_embeddings.mjs",
   "test_archive_graph_model.mjs",
+  "test_archive_relation_ui_contract.mjs",
   "test_archive_graph_2d_review_desk.mjs",
   "test_archive_graph_2d_line_visibility.mjs",
   "test_archive_graph_3d_layout.mjs",
